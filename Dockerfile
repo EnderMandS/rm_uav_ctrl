@@ -5,8 +5,8 @@ ENV ROS_DISTRO noetic
 ARG USERNAME=m
 
 # copy code
-ADD src /home/$USERNAME/code/basic_dev/src/
-VOLUME /home/$USERNAME/code/basic_dev/src
+ADD code /home/$USERNAME/code/
+VOLUME /home/$USERNAME/code/
 ADD setup.zsh /
 RUN sudo chmod +x /setup.zsh
 
@@ -24,12 +24,12 @@ WORKDIR /home/$USERNAME/code/basic_dev
 RUN sudo chmod 777 -R /home/$USERNAME/code/basic_dev
 RUN . /opt/ros/${ROS_DISTRO}/setup.sh && catkin_make --only-pkg-with-deps airsim_ros && . devel/setup.sh && catkin_make --only-pkg-with-deps basic_dev
 
-WORKDIR /home/$USERNAME/code
-
 # ORB SLAM3
 # RUN git clone https://github.com/UZ-SLAMLab/ORB_SLAM3.git ORB_SLAM3 && cd ORB_SLAM3 && \
 #     sudo chmod +x build_ros.sh && \
 #     sudo echo "export ROS_PACKAGE_PATH=\${ROS_PACKAGE_PATH}:/home/$USERNAME/code/ORB_SLAM3/Examples_old/ROS" >> /home/$USERNAME/.zshrc
+
+WORKDIR /home/$USERNAME
 
 USER $USERNAME
 ENTRYPOINT [ "/bin/zsh" ]
