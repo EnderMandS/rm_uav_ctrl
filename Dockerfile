@@ -14,8 +14,9 @@ RUN sudo apt update && \
     sudo rm -rf /var/lib/apt/lists/*
 
 # clone code
-COPY . /home/$USERNAME/UAV
-RUN sudo chmod 777 -R /home/$USERNAME/UAV/code/basic_dev && \
+WORKDIR /home/$USERNAME
+RUN git clone https://github.com/EnderMandS/rm_uav_ctrl.git UAV && \
+    sudo chmod 777 -R /home/$USERNAME/UAV/code/basic_dev && \
     sudo chmod +x /home/$USERNAME/UAV/code/ORBSLAM3/build_ros.sh && \
     sudo echo "export ROS_PACKAGE_PATH=\${ROS_PACKAGE_PATH}:/home/$USERNAME/UAV/code/ORBSLAM3/Examples_old/ROS" >> /home/$USERNAME/.zshrc
 
