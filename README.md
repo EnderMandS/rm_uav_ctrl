@@ -1,2 +1,2 @@
-# rm_uav_ctrl
-Robomaster UAV competition code
+# rm uav ctrl
+Robomaster UAV simulation competition code
