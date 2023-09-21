@@ -13,6 +13,7 @@ RUN sudo chmod 777 -R /home/$USERNAME/basic_dev
 RUN . /opt/ros/${ROS_DISTRO}/setup.sh && catkin_make --only-pkg-with-deps airsim_ros && . devel/setup.sh && catkin_make --only-pkg-with-deps basic_dev
 
 WORKDIR /home/$USERNAME/
+VOLUME /home/$USERNAME/basic_dev/src
 
 USER $USERNAME
 ENTRYPOINT [ "/bin/zsh" ]
