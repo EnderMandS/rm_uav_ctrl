@@ -9,18 +9,12 @@ RUN sudo echo "source /opt/ros/noetic/setup.zsh" >> /home/$USERNAME/.zshrc
 # install depend
 RUN sudo apt update && \
     sudo apt install -y python3-rosdep python3-rosinstall python3-rosinstall-generator python3-wstool && \
-    sudo apt install -y build-essential cmake git vim wget tree pkg-config curl dkms rename g++ gcc unzip && \
+    sudo apt install -y ninja-build build-essential cmake git vim wget tree pkg-config curl dkms rename g++ gcc unzip && \
     sudo apt install -y libeigen3-dev libsuitesparse-dev libboost-all-dev libgoogle-glog-dev libgflags-dev libgtest-dev && \
     sudo apt install -y ffmpeg libpcl-dev libglew-dev libatlas-base-dev libatlas-base-dev && \
     sudo apt install -y libgtk2.0-dev libtbb-dev libswscale-dev libavdevice-dev libjpeg-dev libpng-dev libtiff5-dev libopenexr-dev && \
     sudo apt install -y ros-$ROS_DISTRO-hector-trajectory-server && \
     sudo rm -rf /var/lib/apt/lists/*
-
-# Ninja
-RUN wget -P /home/$USERNAME/pkg/ninja https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-linux.zip && \
-    unzip /home/$USERNAME/pkg/ninja/ninja-linux.zip && \
-    sudo mv /home/$USERNAME/pkg/ninja/ninja /usr/bin && \
-    rm -rf /home/$USERNAME/pkg/ninja
 
 # Ceres
 WORKDIR /home/$USERNAME/pkg/ceres
