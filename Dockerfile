@@ -19,7 +19,7 @@ RUN sudo apt update && \
 # Ceres
 WORKDIR /home/$USERNAME/pkg/ceres
 RUN wget https://github.com/ceres-solver/ceres-solver/archive/refs/tags/2.2.0rc3.tar.gz && \
-    unzip 2.2.0rc3.tar.gz && cd ceres-solver-2.2.0rc3 && mkdir build && cd build \
+    tar xvf 2.2.0rc3.tar.gz && cd ceres-solver-2.2.0rc3 && mkdir build && cd build \
     cmake -G Ninja .. && ninja && sudo ninja install && ninja clean && \
     rm /home/$USERNAME/pkg/ceres/2.2.0rc3.tar.gz
 
