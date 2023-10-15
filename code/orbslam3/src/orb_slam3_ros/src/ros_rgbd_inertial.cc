@@ -59,7 +59,7 @@ int main(int argc, char **argv)
     }
 
     bool enable_pangolin;
-    node_handler.param<bool>(node_name + "/enable_pangolin", enable_pangolin, true);
+    node_handler.param<bool>(node_name + "/enable_pangolin", enable_pangolin, false);
 
     node_handler.param<std::string>(node_name + "/world_frame_id", world_frame_id, "map");
     node_handler.param<std::string>(node_name + "/cam_frame_id", cam_frame_id, "camera");
