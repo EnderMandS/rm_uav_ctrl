@@ -1,6 +1,7 @@
 devel/
 logs/
 build/
+.catkin_tools/
 bin/
 lib/
 msg_gen/
