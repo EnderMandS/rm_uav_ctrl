@@ -6,6 +6,8 @@ IF(NOT CMAKE_BUILD_TYPE)
 ENDIF()
 
 MESSAGE("Build type: " ${CMAKE_BUILD_TYPE})
+add_definitions(-w)
+add_definitions(-DMY_DEBUG)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall   -O3")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall   -O3")
@@ -30,13 +32,13 @@ endif()
 
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
 
-find_package(OpenCV 4.2)
+set(OpenCV_DIR /usr/local)
+find_package(OpenCV 4.8)
 if(NOT OpenCV_FOUND)
-  message(FATAL_ERROR "OpenCV 4.2 not found.")
+  message(FATAL_ERROR "OpenCV 4.8 not found.")
 endif()
 
-MESSAGE("OPENCV VERSION:")
-MESSAGE(${OpenCV_VERSION})
+MESSAGE("OPENCV VERSION:${OpenCV_VERSION}")
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -77,6 +79,7 @@ catkin_package (
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
+  ${OpenCV_INCLUDE_DIRS}
   ${PROJECT_SOURCE_DIR}
   ${PROJECT_SOURCE_DIR}/include
   ${PROJECT_SOURCE_DIR}/orb_slam3
@@ -166,55 +169,55 @@ target_link_libraries(${PROJECT_NAME}
   -lcrypto
 )
 
-## ROS node
-add_executable(ros_mono
-  src/ros_mono.cc
-  src/common.cc
-)
-target_link_libraries(ros_mono
-  ${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-)
+# ## ROS node
+# add_executable(ros_mono
+#   src/ros_mono.cc
+#   src/common.cc
+# )
+# target_link_libraries(ros_mono
+#   ${PROJECT_NAME}
+#   ${catkin_LIBRARIES}
+# )
 
-## ROS node
-add_executable(ros_mono_inertial 
-  src/ros_mono_inertial.cc
-  src/common.cc
-)
-target_link_libraries(ros_mono_inertial 
-  ${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-)
+# ## ROS node
+# add_executable(ros_mono_inertial 
+#   src/ros_mono_inertial.cc
+#   src/common.cc
+# )
+# target_link_libraries(ros_mono_inertial 
+#   ${PROJECT_NAME}
+#   ${catkin_LIBRARIES}
+# )
 
-## ROS node
-add_executable(ros_stereo 
-  src/ros_stereo.cc
-  src/common.cc
-)
-target_link_libraries(ros_stereo
-  ${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-)
+# ## ROS node
+# add_executable(ros_stereo 
+#   src/ros_stereo.cc
+#   src/common.cc
+# )
+# target_link_libraries(ros_stereo
+#   ${PROJECT_NAME}
+#   ${catkin_LIBRARIES}
+# )
 
-## ROS node
-add_executable(ros_stereo_inertial
-  src/ros_stereo_inertial.cc
-  src/common.cc
-)
-target_link_libraries(ros_stereo_inertial 
-  ${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-)
+# ## ROS node
+# add_executable(ros_stereo_inertial
+#   src/ros_stereo_inertial.cc
+#   src/common.cc
+# )
+# target_link_libraries(ros_stereo_inertial 
+#   ${PROJECT_NAME}
+#   ${catkin_LIBRARIES}
+# )
 
-## ROS node
-add_executable(ros_rgbd
-  src/ros_rgbd.cc
-  src/common.cc
-)
-target_link_libraries(ros_rgbd
-  ${PROJECT_NAME}
-  ${catkin_LIBRARIES}
-)
+# ## ROS node
+# add_executable(ros_rgbd
+#   src/ros_rgbd.cc
+#   src/common.cc
+# )
+# target_link_libraries(ros_rgbd
+#   ${PROJECT_NAME}
+#   ${catkin_LIBRARIES}
+# )
 
 ## ROS node
 add_executable(ros_rgbd_inertial
@@ -222,6 +225,16 @@ add_executable(ros_rgbd_inertial
   src/common.cc
 )
 target_link_libraries(ros_rgbd_inertial
+  ${PROJECT_NAME}
+  ${catkin_LIBRARIES}
+)
+
+## ROS node
+add_executable(rm_rgbd_inertial
+  src/rm_rgbd_inertial.cc
+  src/common.cc
+)
+target_link_libraries(rm_rgbd_inertial
   ${PROJECT_NAME}
   ${catkin_LIBRARIES}
 )
