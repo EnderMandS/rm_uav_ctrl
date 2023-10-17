@@ -32,8 +32,7 @@ endif()
 
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
 
-set(OpenCV_DIR /usr/local)
-find_package(OpenCV 4.8)
+find_package(OpenCV 4.8 REQUIRED)
 if(NOT OpenCV_FOUND)
   message(FATAL_ERROR "OpenCV 4.8 not found.")
 endif()

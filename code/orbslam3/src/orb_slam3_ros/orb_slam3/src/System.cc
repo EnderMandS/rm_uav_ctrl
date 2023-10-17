@@ -33,6 +33,8 @@
 #include <boost/archive/xml_iarchive.hpp>
 #include <boost/archive/xml_oarchive.hpp>
 
+#include <ros/ros.h>
+
 namespace ORB_SLAM3
 {
 
@@ -346,6 +348,9 @@ Sophus::SE3f System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const
             mbDeactivateLocalizationMode = false;
         }
     }
+    #ifdef MY_DEBUG
+        ROS_INFO("Check mode change success");
+    #endif
 
     // Check reset
     {
@@ -362,12 +367,21 @@ Sophus::SE3f System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const
             mbResetActiveMap = false;
         }
     }
+    #ifdef MY_DEBUG
+        ROS_INFO("Check reset success");
+    #endif
 
     if (mSensor == System::IMU_RGBD)
         for(size_t i_imu = 0; i_imu < vImuMeas.size(); i_imu++)
             mpTracker->GrabImuData(vImuMeas[i_imu]);
+    #ifdef MY_DEBUG
+        ROS_INFO("GrabImuData success");
+    #endif
 
     Sophus::SE3f Tcw = mpTracker->GrabImageRGBD(imToFeed,imDepthToFeed,timestamp,filename);
+    #ifdef MY_DEBUG
+        ROS_INFO("GrabImageRGBD success");
+    #endif
 
     unique_lock<mutex> lock2(mMutexState);
     mTrackingState = mpTracker->mState;
