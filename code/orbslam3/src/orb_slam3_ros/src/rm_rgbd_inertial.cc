@@ -47,29 +47,34 @@ int main(int argc, char **argv)
     ros::NodeHandle node_handler;
     image_transport::ImageTransport image_transport(node_handler);
 
-    std::string voc_file;
-    std::string settings_file;
-
+    std::string voc_file, settings_file;
+    bool enable_pangolin = false;
+    node_handler.param<std::string>(node_name + "/voc_file", voc_file, "file_not_set");
+    node_handler.param<std::string>(node_name + "/settings_file", settings_file, "file_not_set");
+    node_handler.param<bool>(node_name + "/enable_pangolin", enable_pangolin, false);
     node_handler.param<std::string>(node_name + "/world_frame_id", world_frame_id, "map");
     node_handler.param<std::string>(node_name + "/cam_frame_id", cam_frame_id, "camera");
     node_handler.param<std::string>(node_name + "/imu_frame_id", imu_frame_id, "imu");
 
+    if (voc_file == "file_not_set" || settings_file == "file_not_set")
+    {
+        ROS_ERROR("Please provide voc_file and settings_file in the launch file");       
+        ros::shutdown();
+        return -1;
+    }
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
     sensor_type = ORB_SLAM3::System::IMU_RGBD;
     bool enable_pangolin = false;
-    pSLAM = new ORB_SLAM3::System(
-        "/home/m/UAV/code/orbslam3/src/orb_slam3_ros/orb_slam3/Vocabulary/ORBvoc.txt.bin",
-        "/home/m/UAV/code/orbslam3/src/orb_slam3_ros/config/RGB-D-Inertial/rm_cam.yaml",
-        sensor_type, enable_pangolin);
+    pSLAM = new ORB_SLAM3::System(voc_file, settings_file, sensor_type, enable_pangolin);
     ROS_INFO("Create ORB SLAM3 System success.");
 
     ImuGrabber imugb;
     ImageGrabber igb(&imugb);
 
-    ros::Subscriber sub_imu = node_handler.subscribe("/airsim_node/drone_1/imu/imu", 1000, &ImuGrabber::GrabImu, &imugb);
+    ros::Subscriber sub_imu = node_handler.subscribe("/imu", 1000, &ImuGrabber::GrabImu, &imugb);
 
-    message_filters::Subscriber<sensor_msgs::Image> sub_rgb_img(node_handler, "/airsim_node/drone_1/front_center/Scene", 100);
-    message_filters::Subscriber<sensor_msgs::Image> sub_depth_img(node_handler, "/airsim_node/drone_1/front_center/DepthPlanar", 100);
+    message_filters::Subscriber<sensor_msgs::Image> sub_rgb_img(node_handler, "/camera/rgb/image_raw", 100);
+    message_filters::Subscriber<sensor_msgs::Image> sub_depth_img(node_handler, "/camera/depth_registered/image_raw", 100);
 
     typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> sync_pol;
     message_filters::Synchronizer<sync_pol> sync(sync_pol(10), sub_rgb_img, sub_depth_img);
@@ -149,9 +154,6 @@ void ImageGrabber::SyncWithImu() {
 
                         // Load imu measurements from buffer
                         vImuMeas.clear();
-                        #ifdef MY_DEBUG
-                            int imuCnt = 0;
-                        #endif
                         while(mpImuGb->imuBuf.front()->header.stamp.toSec() <= tIm) {
                             cv::Point3f acc(
                                 mpImuGb->imuBuf.front()->linear_acceleration.x, 
@@ -167,7 +169,6 @@ void ImageGrabber::SyncWithImu() {
                                     mpImuGb->imuBuf.front()->angular_velocity.y,
                                     mpImuGb->imuBuf.front()->angular_velocity.z;
                             mpImuGb->imuBuf.pop();
-                            ++imuCnt;
                         }
                         mpImuGb->mBufMutex.unlock();
 

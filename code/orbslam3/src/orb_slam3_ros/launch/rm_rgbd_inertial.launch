@@ -4,13 +4,13 @@
     <!-- Main node -->
     <node name="orb_slam3" pkg="orb_slam3_ros" type="rm_rgbd_inertial" output="screen">
         <!-- change the topics according to the dataset -->
-        <!-- <remap from="/camera/rgb/image_raw"                 to="/airsim_node/drone_1/front_center/Scene"/>
+        <remap from="/camera/rgb/image_raw"                 to="/airsim_node/drone_1/front_center/Scene"/>
         <remap from="/camera/depth_registered/image_raw"    to="/airsim_node/drone_1/front_center/DepthPlanar"/>
-        <remap from="/imu"                                  to="/airsim_node/drone_1/imu/imu"/> -->
+        <remap from="/imu"                                  to="/airsim_node/drone_1/imu/imu"/>
 
         <!-- Parameters for original ORB-SLAM3 -->
-        <!-- <param name="voc_file"      type="string" value="$(find orb_slam3_ros)/orb_slam3/Vocabulary/ORBvoc.txt.bin"/>
-        <param name="settings_file" type="string" value="$(find orb_slam3_ros)/config/RGB-D-Inertial/rm_cam.yaml"/> -->
+        <param name="voc_file"      type="string" value="$(find orb_slam3_ros)/orb_slam3/Vocabulary/ORBvoc.txt.bin"/>
+        <param name="settings_file" type="string" value="$(find orb_slam3_ros)/config/RGB-D-Inertial/rm_cam.yaml"/>
 
         <!-- Parameters for ROS -->
         <param name="world_frame_id"    type="string"   value="world" />
