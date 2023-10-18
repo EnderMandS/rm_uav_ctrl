@@ -97,17 +97,17 @@ int main(int argc, char **argv)
 
 void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const sensor_msgs::ImageConstPtr& msgD)
 {
-    mBufMutex.lock();
+    if (this->mBufMutex.try_lock()) {
+        if (!imgRGBBuf.empty())
+            imgRGBBuf.pop();
+        imgRGBBuf.push(msgRGB);
 
-    if (!imgRGBBuf.empty())
-        imgRGBBuf.pop();
-    imgRGBBuf.push(msgRGB);
+        if (!imgDBuf.empty())
+            imgDBuf.pop();
+        imgDBuf.push(msgD);
 
-    if (!imgDBuf.empty())
-        imgDBuf.pop();
-    imgDBuf.push(msgD);
-
-    mBufMutex.unlock();
+        this->mBufMutex.unlock();
+    }
 }
 
 cv::Mat ImageGrabber::GetImage(const sensor_msgs::ImageConstPtr &img_msg)
@@ -126,76 +126,77 @@ cv::Mat ImageGrabber::GetImage(const sensor_msgs::ImageConstPtr &img_msg)
     return cv_ptr->image.clone();
 }
 
-void ImageGrabber::SyncWithImu()
-{
-    while(1)
-    {
-        if (!imgRGBBuf.empty() && !mpImuGb->imuBuf.empty())
-        {
-            cv::Mat im, depth;
-            double tIm = 0;
+void ImageGrabber::SyncWithImu() {
+    cv::Mat im, depth;
+    double tIm;
+    ros::Time msg_time;
+    vector<ORB_SLAM3::IMU::Point> vImuMeas;
+    Eigen::Vector3f Wbb;
 
-            tIm = imgRGBBuf.front()->header.stamp.toSec();
-            if (tIm > mpImuGb->imuBuf.back()->header.stamp.toSec())
-                continue;
-            
-            this->mBufMutex.lock();
-            ros::Time msg_time = imgRGBBuf.front()->header.stamp;
-            im = GetImage(imgRGBBuf.front());
-            imgRGBBuf.pop();
-            depth = GetImage(imgDBuf.front());
-            imgDBuf.pop();
+    while(1) {
+        if (this->mBufMutex.try_lock()) {
+            if (mpImuGb->mBufMutex.try_lock()) {
+                if (!imgRGBBuf.empty() && mpImuGb->imuBuf.size()>1) {
+                    tIm = imgRGBBuf.front()->header.stamp.toSec();
+                    if (tIm < mpImuGb->imuBuf.back()->header.stamp.toSec() && 
+                        tIm >= mpImuGb->imuBuf.front()->header.stamp.toSec()) {
+                        msg_time = imgRGBBuf.front()->header.stamp;
+                        im = GetImage(imgRGBBuf.front());
+                        depth = GetImage(imgDBuf.front());
+                        imgRGBBuf.pop();
+                        imgDBuf.pop();
+                        this->mBufMutex.unlock();
+
+                        // Load imu measurements from buffer
+                        vImuMeas.clear();
+                        #ifdef MY_DEBUG
+                            int imuCnt = 0;
+                        #endif
+                        while(mpImuGb->imuBuf.front()->header.stamp.toSec() <= tIm) {
+                            cv::Point3f acc(
+                                mpImuGb->imuBuf.front()->linear_acceleration.x, 
+                                mpImuGb->imuBuf.front()->linear_acceleration.y, 
+                                mpImuGb->imuBuf.front()->linear_acceleration.z);
+                            cv::Point3f gyr(
+                                mpImuGb->imuBuf.front()->angular_velocity.x, 
+                                mpImuGb->imuBuf.front()->angular_velocity.y, 
+                                mpImuGb->imuBuf.front()->angular_velocity.z);
+                            double t = mpImuGb->imuBuf.front()->header.stamp.toSec();
+                            vImuMeas.push_back(ORB_SLAM3::IMU::Point(acc, gyr, t));
+                            Wbb <<  mpImuGb->imuBuf.front()->angular_velocity.x,
+                                    mpImuGb->imuBuf.front()->angular_velocity.y,
+                                    mpImuGb->imuBuf.front()->angular_velocity.z;
+                            mpImuGb->imuBuf.pop();
+                            ++imuCnt;
+                        }
+                        mpImuGb->mBufMutex.unlock();
+
+                        // ORB-SLAM3 runs in TrackRGBD()
+                        #ifdef MY_DEBUG
+                            ROS_INFO("Track RGBD start whit imuCnt: %d", imuCnt);
+                        #endif
+                        pSLAM->TrackRGBD(im, depth, tIm, vImuMeas);
+                        #ifdef MY_DEBUG
+                            ROS_INFO("Track RGBD end");
+                        #endif
+
+                        publish_topics(msg_time, Wbb);
+                        continue;   // jump unlock. time gone when tacking, no need for thread sleep
+                    }   // if(tIm < mpImuGb->imuBuf.back()->header.stamp.toSec())
+                }   // if(!imgRGBBuf.empty() && !mpImuGb->imuBuf.empty())
+                mpImuGb->mBufMutex.unlock();
+            }   // mpImuGb->mBufMutex.try_lock()
             this->mBufMutex.unlock();
-
-            vector<ORB_SLAM3::IMU::Point> vImuMeas;
-            vImuMeas.clear();
-            Eigen::Vector3f Wbb;
-            mpImuGb->mBufMutex.lock();
-            if (!mpImuGb->imuBuf.empty())
-            {
-                // Load imu measurements from buffer
-                while(!mpImuGb->imuBuf.empty() && mpImuGb->imuBuf.front()->header.stamp.toSec() <= tIm)
-                {
-                    double t = mpImuGb->imuBuf.front()->header.stamp.toSec();
-
-                    cv::Point3f acc(mpImuGb->imuBuf.front()->linear_acceleration.x, mpImuGb->imuBuf.front()->linear_acceleration.y, mpImuGb->imuBuf.front()->linear_acceleration.z);
-                    
-                    cv::Point3f gyr(mpImuGb->imuBuf.front()->angular_velocity.x, mpImuGb->imuBuf.front()->angular_velocity.y, mpImuGb->imuBuf.front()->angular_velocity.z);
-
-                    vImuMeas.push_back(ORB_SLAM3::IMU::Point(acc, gyr, t));
-                    
-                    Wbb << mpImuGb->imuBuf.front()->angular_velocity.x, mpImuGb->imuBuf.front()->angular_velocity.y, mpImuGb->imuBuf.front()->angular_velocity.z;
-
-                    mpImuGb->imuBuf.pop();
-                }
-            }
-            mpImuGb->mBufMutex.unlock();
-
-            // ORB-SLAM3 runs in TrackRGBD()
-            #ifdef MY_DEBUG
-                ROS_INFO("Tracking RGBD");
-            #endif
-            Sophus::SE3f Tcw = pSLAM->TrackRGBD(im, depth, tIm, vImuMeas);
-            #ifdef MY_DEBUG
-                ROS_INFO("Tracking RGBD frame success");
-            #endif
-            
-            publish_topics(msg_time, Wbb);
-        }
-
+        }   // this->mBufMutex.try_lock()
         std::chrono::milliseconds tSleep(1);
         std::this_thread::sleep_for(tSleep);
-    }
-}
+    } // while(1)
+} // void ImageGrabber::SyncWithImu
 
 void ImuGrabber::GrabImu(const sensor_msgs::ImuConstPtr &imu_msg)
 {
-    #ifdef MY_DEBUG
-        ROS_INFO("Got IMU message.");
-    #endif
-    mBufMutex.lock();
-    imuBuf.push(imu_msg);
-    mBufMutex.unlock();
-
-    return;
+    if (mBufMutex.try_lock()) {
+        imuBuf.push(imu_msg);
+        mBufMutex.unlock();
+    }
 }
