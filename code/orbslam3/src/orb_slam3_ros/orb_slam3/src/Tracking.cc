@@ -1561,36 +1561,15 @@ Sophus::SE3f Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, co
 
     if(mImGray.channels()==3)
     {
-        #ifdef MY_DEBUG
-            ROS_INFO("Image channels 3");
-        #endif
         if(mbRGB) {
-            #ifdef MY_DEBUG
-                ROS_INFO("mbRGB true");
-            #endif
-            try {
-                cv::cvtColor(mImGray,mImGray,cv::COLOR_RGB2GRAY);
-            } catch(cv::Exception& e) {
-                const char* err_msg = e.what();
-                std::cout << "Exception caugth: " << err_msg << std::endl;
-                exit(1);
-            }
-            #ifdef MY_DEBUG
-                ROS_INFO("change to gray success");
-            #endif
+            cvtColor(mImGray,mImGray,cv::COLOR_RGB2GRAY);
         }
         else {
-            #ifdef MY_DEBUG
-                ROS_INFO("mbRGB false");
-            #endif
             cvtColor(mImGray,mImGray,cv::COLOR_BGR2GRAY);
         }
     }
     else if(mImGray.channels()==4)
     {
-        #ifdef MY_DEBUG
-            ROS_INFO("Image channels 4");
-        #endif
         if(mbRGB) {
             cvtColor(mImGray,mImGray,cv::COLOR_RGBA2GRAY);
         }
@@ -1599,9 +1578,6 @@ Sophus::SE3f Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, co
             cvtColor(mImGray,mImGray,cv::COLOR_BGRA2GRAY);
         }
     }
-    #ifdef MY_DEBUG
-        ROS_INFO("Change images to grayscale success");
-    #endif
 
     if((fabs(mDepthMapFactor-1.0f)>1e-5) || imDepth.type()!=CV_32F)
         imDepth.convertTo(imDepth,CV_32F,mDepthMapFactor);
@@ -1614,9 +1590,6 @@ Sophus::SE3f Tracking::GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, co
     #ifdef MY_DEBUG
         ROS_INFO("Create frame success");
     #endif
-
-
-
 
     mCurrentFrame.mNameFile = filename;
     mCurrentFrame.mnDataset = mnNumDataset;
