@@ -64,7 +64,6 @@ int main(int argc, char **argv)
     }
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
     sensor_type = ORB_SLAM3::System::IMU_RGBD;
-    bool enable_pangolin = false;
     pSLAM = new ORB_SLAM3::System(voc_file, settings_file, sensor_type, enable_pangolin);
     ROS_INFO("Create ORB SLAM3 System success.");
 
