@@ -63,6 +63,9 @@ private:
     ros::Publisher anglerate_publisher;
     ros::Publisher pwm_publisher;
 
+    // Timer
+    ros::Timer timer;
+
     void pose_cb(const geometry_msgs::PoseStamped::ConstPtr& msg);
     void imu_cb(const sensor_msgs::Imu::ConstPtr& msg);
     void circles_cb(const airsim_ros::CirclePoses::ConstPtr& msg);

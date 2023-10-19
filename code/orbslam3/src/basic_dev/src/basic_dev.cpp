@@ -8,6 +8,7 @@ int main(int argc, char** argv)
 
     ros::init(argc, argv, "basic_dev"); // 初始化ros 节点，命名为 basic
     ros::NodeHandle n; // 创建node控制句柄
+    ROS_INFO("baic_dev start");
     BasicDev go(&n);
     return 0;
 }
@@ -35,18 +36,20 @@ BasicDev::BasicDev(ros::NodeHandle *nh)
     pwmcmd.rotorPWM3 = 0.6015;// rb（0.0-1.0）
 
     //无人机信息通过如下命令订阅，当收到消息时自动回调对应的函数
-    odom_suber = nh->subscribe<geometry_msgs::PoseStamped>("/airsim_node/drone_1/pose_gt", 1, std::bind(&BasicDev::pose_cb, this, std::placeholders::_1));//状态真值，用于赛道一
-    imu_suber = nh->subscribe<sensor_msgs::Imu>("airsim_node/drone_1/imu/imu", 1, std::bind(&BasicDev::imu_cb, this, std::placeholders::_1));//imu数据
-    circles_suber = nh->subscribe<airsim_ros::CirclePoses>("airsim_node/drone_1/circle_poses_gt", 1, std::bind(&BasicDev::circles_cb, this, std::placeholders::_1));//障碍圈数据
-    front_view_suber = it->subscribe("airsim_node/drone_1/front_center/Scene", 1, std::bind(&BasicDev::front_view_cb, this,  std::placeholders::_1));
-    front_depth_suber = it->subscribe("airsim_node/drone_1/front_center/DepthPlanar", 1, std::bind(&BasicDev::front_depth_cb, this,  std::placeholders::_1));
+    // odom_suber = nh->subscribe<geometry_msgs::PoseStamped>("/airsim_node/drone_1/pose_gt", 1, std::bind(&BasicDev::pose_cb, this, std::placeholders::_1));//状态真值，用于赛道一
+    // imu_suber = nh->subscribe<sensor_msgs::Imu>("airsim_node/drone_1/imu/imu", 1, std::bind(&BasicDev::imu_cb, this, std::placeholders::_1));//imu数据
+    // circles_suber = nh->subscribe<airsim_ros::CirclePoses>("airsim_node/drone_1/circle_poses_gt", 1, std::bind(&BasicDev::circles_cb, this, std::placeholders::_1));//障碍圈数据
+    // front_view_suber = it->subscribe("airsim_node/drone_1/front_center/Scene", 1, std::bind(&BasicDev::front_view_cb, this,  std::placeholders::_1));
+    // front_depth_suber = it->subscribe("airsim_node/drone_1/front_center/DepthPlanar", 1, std::bind(&BasicDev::front_depth_cb, this,  std::placeholders::_1));
 
     //通过这两个服务可以调用模拟器中的无人机起飞和降落命令
-    takeoff_client = nh->serviceClient<airsim_ros::Takeoff>("/airsim_node/drone_1/takeoff");
-    land_client = nh->serviceClient<airsim_ros::Takeoff>("/airsim_node/drone_1/land");
-    reset_client = nh->serviceClient<airsim_ros::Reset>("/airsim_node/reset");
+    // takeoff_client = nh->serviceClient<airsim_ros::Takeoff>("/airsim_node/drone_1/takeoff");
+    // land_client = nh->serviceClient<airsim_ros::Takeoff>("/airsim_node/drone_1/land");
+    // reset_client = nh->serviceClient<airsim_ros::Reset>("/airsim_node/reset");
     //通过publisher实现对无人机的速度控制和姿态控制和角速度控制
     anglerate_publisher = nh->advertise<airsim_ros::AngleRateThrottle>("airsim_node/drone_1/angle_rate_throttle_frame", 1);
+
+    // timer = nh->createTimer(ros::Duration(0.02), &timer_cb);
 
     // takeoff_client.call(takeoff); //起飞
     // land_client.call(land); //降落
@@ -58,6 +61,14 @@ BasicDev::BasicDev(ros::NodeHandle *nh)
 BasicDev::~BasicDev()
 {
 }
+
+// void timer_cb(const ros::TimerEvent& event) {
+//     arthrcmd.rollRate = 0; //roll 角速度（rad/s）
+//     arthrcmd.pitchRate = 0;//pitch 角速度 （rad/s）
+//     arthrcmd.yawRate = 0.1;//yaw 角速度 （rad/s）
+//     arthrcmd.throttle = 0;//油门， （0.0-1.0）
+//     anglerate_publisher.publish(arthrcmd);
+// }
 
 void BasicDev::pose_cb(const geometry_msgs::PoseStamped::ConstPtr& msg)
 {
