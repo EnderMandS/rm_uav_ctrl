@@ -1,11 +1,12 @@
 <launch>
+  <param name="use_sim_time" value="false" />
   <!-- size of map, change the size inflate x, y, z according to your application -->
   <arg name="map_size_x" value="40.0"/>
   <arg name="map_size_y" value="40.0"/>
-  <arg name="map_size_z" value=" 3.0"/>
+  <arg name="map_size_z" value=" 10.0"/>
 
   <!-- topic of your odometry such as VIO or LIO -->
-  <arg name="odom_topic" value="/visual_slam/odom" />
+  <arg name="odom_topic" value="/airsim_node/drone_1/pose_gt"/>
 
   <!-- main algorithm params -->
   <include file="$(find ego_planner)/launch/advanced_param.xml">
@@ -18,18 +19,18 @@
     <!-- camera pose: transform of camera frame in the world frame -->
     <!-- depth topic: depth image, 640x480 by default -->
     <!-- don't set cloud_topic if you already set these ones! -->
-    <arg name="camera_pose_topic" value="/pcl_render_node/camera_pose"/>
-    <arg name="depth_topic" value="/pcl_render_node/depth"/>
+    <arg name="camera_pose_topic" value="/airsim_node/drone_1/pose_cam"/>
+    <arg name="depth_topic" value="/airsim_node/drone_1/front_center/DepthPlanar"/>
 
     <!-- topic of point cloud measurement, such as from LIDAR  -->
     <!-- don't set camera pose and depth, if you already set this one! -->
     <arg name="cloud_topic" value="/pcl_render_node/cloud"/>
 
     <!-- intrinsic params of the depth camera -->
-    <arg name="cx" value="321.04638671875"/>
-    <arg name="cy" value="243.44969177246094"/>
-    <arg name="fx" value="387.229248046875"/>
-    <arg name="fy" value="387.229248046875"/>
+    <arg name="cx" value="320.0"/>
+    <arg name="cy" value="240.0"/>
+    <arg name="fx" value="320.0"/>
+    <arg name="fy" value="320.0"/>
 
     <!-- maximum velocity and acceleration the drone will reach -->
     <arg name="max_vel" value="2.0" />
@@ -40,7 +41,7 @@
 
     <!-- 1: use 2D Nav Goal to select goal  -->
     <!-- 2: use global waypoints below  -->
-    <arg name="flight_type" value="2" />
+    <arg name="flight_type" value="1" />
     
     <!-- global waypoints -->
     <!-- It generates a piecewise min-snap traj passing all waypoints -->
@@ -83,8 +84,10 @@
     <param name="waypoint_type" value="manual-lonely-waypoint"/>    
   </node>
 
+  <node pkg="tf" type="static_transform_publisher" name="body_to_cam" args="0.26 0 0 0 0 0 /airsim_node/drone_1/pose_gt /airsim_node/drone_1/pose_cam 100" />
+
   <!-- use simulator -->
-  <include file="$(find ego_planner)/launch/simulator.xml">
+  <!-- <include file="$(find ego_planner)/launch/simulator.xml">
     <arg name="map_size_x_" value="$(arg map_size_x)"/>
     <arg name="map_size_y_" value="$(arg map_size_y)"/>
     <arg name="map_size_z_" value="$(arg map_size_z)"/>
@@ -93,7 +96,7 @@
     <arg name="min_dist" value="1.2"/>
 
     <arg name="odometry_topic" value="$(arg odom_topic)" />
-  </include>
+  </include> -->
 
   <include file="$(find ego_planner)/launch/rviz.launch"/>
 
