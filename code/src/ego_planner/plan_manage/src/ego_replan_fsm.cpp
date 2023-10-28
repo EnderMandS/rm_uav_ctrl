@@ -52,6 +52,8 @@ namespace ego_planner
     }
     else
       cout << "Wrong target_type_ value! target_type_=" << target_type_ << endl;
+
+    ROS_INFO("EGOReplanFSM init success");
   }
 
   void EGOReplanFSM::planGlobalTrajbyGivenWps()

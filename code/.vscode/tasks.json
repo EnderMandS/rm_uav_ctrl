@@ -4,7 +4,7 @@
         {
             "label": "catkin_build:debug",
             "type": "shell", 
-            "command": ". /opt/ros/noetic/setup.sh && catkin build -DCMAKE_EXPORT_COMPILE_COMMANDS=1",
+            "command": ". /opt/ros/noetic/setup.sh && catkin_make -DCATKIN_WHITELIST_PACKAGES=\"\" -DCMAKE_EXPORT_COMPILE_COMMANDS=1",
             "group": {"kind":"build","isDefault":true},
             "presentation": {
                 "reveal": "always"
