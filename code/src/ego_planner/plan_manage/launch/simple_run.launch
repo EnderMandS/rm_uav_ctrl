@@ -6,7 +6,10 @@
   <arg name="map_size_z" value=" 10.0"/>
 
   <!-- topic of your odometry such as VIO or LIO -->
-  <arg name="odom_topic" value="/airsim_node/drone_1/pose_gt"/>
+  <arg name="odom_topic" value="/odom"/>
+
+  <!-- odometry subpub server -->
+  <node pkg="odom_pub" name="odom_pub" type="odom_pub" output="screen"/>
 
   <!-- main algorithm params -->
   <include file="$(find ego_planner)/launch/advanced_param.xml">

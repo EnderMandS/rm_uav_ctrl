@@ -31,8 +31,8 @@ void OdomSubPub::odomCb(const geometry_msgs::PoseStampedConstPtr &msg) {
   odom.pose.pose.orientation.z = msg->pose.orientation.z;
   odom.header.seq = msg->header.seq;
   odom.header.stamp = msg->header.stamp;
-  odom.header.frame_id = "/odom";
-  odom.child_frame_id = "/base_link";
+  odom.header.frame_id = "odom";
+  odom.child_frame_id = "base_link";
   odom_pub.publish(odom);
 }
 
