@@ -104,7 +104,7 @@
     <param name="grid_map/virtual_ceil_height"   value="2.5"/>
     <param name="grid_map/visualization_truncate_height"   value="2.4"/>
     <param name="grid_map/show_occ_time"  value="false"/>
-    <param name="grid_map/pose_type"     value="2"/>  
+    <param name="grid_map/pose_type"     value="1"/>  <!-- TODO -->
     <param name="grid_map/frame_id"      value="world"/>
 
   <!-- planner manager -->

@@ -99,6 +99,7 @@ void GridMap::initMap(ros::NodeHandle &nh)
 
   if (mp_.pose_type_ == POSE_STAMPED)
   {
+    ROS_INFO("GridMap init with cam pose.");
     pose_sub_.reset(
         new message_filters::Subscriber<geometry_msgs::PoseStamped>(node_, "/grid_map/pose", 25));
 
@@ -108,6 +109,7 @@ void GridMap::initMap(ros::NodeHandle &nh)
   }
   else if (mp_.pose_type_ == ODOMETRY)
   {
+    ROS_INFO("GridMap init with cam odometry.");
     odom_sub_.reset(new message_filters::Subscriber<nav_msgs::Odometry>(node_, "/grid_map/odom", 100));
 
     sync_image_odom_.reset(new message_filters::Synchronizer<SyncPolicyImageOdom>(
@@ -144,6 +146,7 @@ void GridMap::initMap(ros::NodeHandle &nh)
   // rand_noise2_ = normal_distribution<double>(0, 0.2);
   // random_device rd;
   // eng_ = default_random_engine(rd());
+  ROS_INFO("GridMap init success.");
 }
 
 void GridMap::resetBuffer()
@@ -200,6 +203,7 @@ int GridMap::setCacheOccupancy(Eigen::Vector3d pos, int occ)
 
 void GridMap::projectDepthImage()
 {
+  // ROS_INFO("Updating occ from depth.");
   // md_.proj_points_.clear();
   md_.proj_points_cnt = 0;
 
@@ -654,7 +658,7 @@ void GridMap::updateOccupancyCallback(const ros::TimerEvent & /*event*/)
 {
   if (!md_.occ_need_update_)
     return;
-
+  // ROS_INFO("occ_need_update.");
   /* update occupancy */
   // ros::Time t1, t2, t3, t4;
   // t1 = ros::Time::now();
@@ -686,6 +690,7 @@ void GridMap::updateOccupancyCallback(const ros::TimerEvent & /*event*/)
 void GridMap::depthPoseCallback(const sensor_msgs::ImageConstPtr &img,
                                 const geometry_msgs::PoseStampedConstPtr &pose)
 {
+  // ROS_INFO("Got depth and cam pose.");
   /* get depth image */
   cv_bridge::CvImagePtr cv_ptr;
   cv_ptr = cv_bridge::toCvCopy(img, img->encoding);

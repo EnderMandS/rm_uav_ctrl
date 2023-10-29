@@ -6,7 +6,7 @@
   <arg name="map_size_z" value=" 10.0"/>
 
   <!-- topic of your odometry such as VIO or LIO -->
-  <arg name="odom_topic" value="/odom"/>
+  <arg name="odom_topic" value="/odom_nav"/>
 
   <!-- odometry subpub server -->
   <node pkg="odom_pub" name="odom_pub" type="odom_pub" output="screen"/>
@@ -22,7 +22,7 @@
     <!-- camera pose: transform of camera frame in the world frame -->
     <!-- depth topic: depth image, 640x480 by default -->
     <!-- don't set cloud_topic if you already set these ones! -->
-    <arg name="camera_pose_topic" value="/airsim_node/drone_1/pose_cam"/>
+    <arg name="camera_pose_topic" value="camera"/>
     <arg name="depth_topic" value="/airsim_node/drone_1/front_center/DepthPlanar"/>
 
     <!-- topic of point cloud measurement, such as from LIDAR  -->
@@ -87,7 +87,7 @@
     <param name="waypoint_type" value="manual-lonely-waypoint"/>    
   </node>
 
-  <node pkg="tf" type="static_transform_publisher" name="body_to_cam" args="0.26 0 0 0 0 0 /airsim_node/drone_1/pose_gt /airsim_node/drone_1/pose_cam 100" />
+  <node pkg="tf2_ros" type="static_transform_publisher" name="base_to_cam" args="0.26 0 0 0 0 0 base_link camera" output="screen"/>
 
   <!-- use simulator -->
   <!-- <include file="$(find ego_planner)/launch/simulator.xml">
