@@ -5,6 +5,8 @@
 #include <Eigen/StdVector>
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <image_transport/image_transport.h>
+#include <image_transport/publisher.h>
 #include <iostream>
 #include <random>
 #include <nav_msgs/Odometry.h>
@@ -134,7 +136,7 @@ struct MappingData {
 
 class GridMap {
 public:
-  GridMap() {}
+  GridMap(ros::NodeHandle &);
   ~GridMap() {}
 
   enum { POSE_STAMPED = 1, ODOMETRY = 2, INVALID_IDX = -10000 };
@@ -162,7 +164,7 @@ public:
   inline bool isKnownFree(const Eigen::Vector3i& id);
   inline bool isKnownOccupied(const Eigen::Vector3i& id);
 
-  void initMap(ros::NodeHandle& nh);
+  void initMap();
 
   void publishMap();
   void publishMapInflate(bool all_info = false);
@@ -227,6 +229,10 @@ private:
   ros::Publisher map_pub_, map_inf_pub_;
   ros::Publisher unknown_pub_;
   ros::Timer occ_timer_, vis_timer_;
+
+  //MY_DEBUG
+  image_transport::ImageTransport it_F32, it_U16;
+  image_transport::Publisher depth_F32_pub, depth_U16_pub;
 
   //
   uniform_real_distribution<double> rand_noise_;

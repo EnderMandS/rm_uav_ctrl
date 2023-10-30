@@ -23,8 +23,8 @@ namespace ego_planner
     nh.param("manager/planning_horizon", pp_.planning_horizen_, 5.0);
 
     local_data_.traj_id_ = 0;
-    grid_map_.reset(new GridMap);
-    grid_map_->initMap(nh);
+    grid_map_.reset(new GridMap(nh));
+    grid_map_->initMap();
 
     bspline_optimizer_rebound_.reset(new BsplineOptimizer);
     bspline_optimizer_rebound_->setParam(nh);
