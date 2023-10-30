@@ -48,3 +48,4 @@ borrar/*
 */ExecMean.txt
 
 !Dockerfile
+!CATKIN_IGNORE
