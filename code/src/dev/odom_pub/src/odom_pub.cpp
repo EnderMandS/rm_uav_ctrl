@@ -27,8 +27,8 @@ void OdomSubPub::init(ros::NodeHandle &nh) {
   cam_nav_pub = nh.advertise<geometry_msgs::PoseStamped>("/cam_nav", 100);
   cam_pose.header.frame_id = "world";
 
-  world_to_base.header.frame_id = "world";
-  world_to_base.child_frame_id = "base_link";
+  world_to_base.header.frame_id = "base_link";
+  world_to_base.child_frame_id = "world";
 
   tf_timer = nh.createTimer(ros::Duration(0.01), &OdomSubPub::tf_timerCb, this);
   
