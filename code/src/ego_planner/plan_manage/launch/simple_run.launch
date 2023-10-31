@@ -98,6 +98,7 @@
   <node pkg="tf2_ros" type="static_transform_publisher" name="base_to_cam" args="0.26 0 0 0 0 0 base_link camera" output="screen"/>
   <node pkg="tf2_ros" type="static_transform_publisher" name="cam_to_camopt" args="0 0 0 0 0 0 camera front_center_optical" output="screen"/>
   <node pkg="odom_pub" name="odom_pub" type="odom_pub" output="screen"/>
+  <node pkg="camera_convert" name="camera_convert" type="camera_convert" output="screen"/>
   <!-- use simulator -->
   <!-- <include file="$(find ego_planner)/launch/simulator.xml">
     <arg name="map_size_x_" value="$(arg map_size_x)"/>
