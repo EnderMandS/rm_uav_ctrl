@@ -21,10 +21,10 @@ void OdomSubPub::init(ros::NodeHandle &nh) {
       nh.subscribe("airsim_node/drone_1/imu/imu", 1, &OdomSubPub::imuCb, this);
 
   odom_nav_pub = nh.advertise<nav_msgs::Odometry>("/odom_nav", 100);
-  odom_nav.header.frame_id = "odom";
-  odom_nav.child_frame_id = "base_link";
+  odom_nav.header.frame_id = "base_link";
+  odom_nav.child_frame_id = "world";
 
-  cam_nav_pub = nh.advertise<geometry_msgs::PoseStamped>("/cam_nav", 100);
+  cam_pose_pub = nh.advertise<geometry_msgs::PoseStamped>("/cam_pose", 100);
   cam_pose.header.frame_id = "world";
 
   world_to_base.header.frame_id = "base_link";
@@ -67,7 +67,7 @@ void OdomSubPub::imuCb(const sensor_msgs::ImuConstPtr &msg) {
 
 void OdomSubPub::tf_timerCb(const ros::TimerEvent &event){
   try {
-    cam_tf_stamp = tf_buff.lookupTransform("camera", "world", ros::Time(0));
+    cam_tf_stamp = tf_buff.lookupTransform("world", "camera", ros::Time(0));
   } catch (tf2::TransformException &e) {
     ROS_WARN("%s",e.what());
     return;
@@ -80,7 +80,7 @@ void OdomSubPub::tf_timerCb(const ros::TimerEvent &event){
   cam_pose.pose.orientation.y = cam_tf_stamp.transform.rotation.y;
   cam_pose.pose.orientation.z = cam_tf_stamp.transform.rotation.z;
   cam_pose.header.stamp = ros::Time::now();
-  cam_nav_pub.publish(cam_pose);
+  cam_pose_pub.publish(cam_pose);
 }
 
 } // namespace OdomSubPubNS

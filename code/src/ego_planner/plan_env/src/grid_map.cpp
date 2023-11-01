@@ -712,8 +712,8 @@ void GridMap::depthPoseCallback(const sensor_msgs::ImageConstPtr &img,
       cv_ptr->image).toImageMsg();
     depth_F32_pub.publish(F32_msg);
 
-    // (cv_ptr->image).convertTo(cv_ptr->image, CV_16UC1, mp_.k_depth_scaling_factor_);
-    cv::normalize(cv_ptr->image, cv_ptr->image, 0, 65536, cv::NORM_MINMAX, CV_16UC1);
+    (cv_ptr->image).convertTo(cv_ptr->image, CV_16UC1, mp_.k_depth_scaling_factor_);
+    // cv::normalize(cv_ptr->image, cv_ptr->image, 0, 65536, cv::NORM_MINMAX, CV_16UC1);
     
     auto U16_msg = cv_bridge::CvImage(
       std_msgs::Header(),
