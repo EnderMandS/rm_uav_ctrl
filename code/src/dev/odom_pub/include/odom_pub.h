@@ -22,7 +22,7 @@ public:
 
 private:
   ros::Subscriber odom_sub, imu_sub;
-  ros::Publisher odom_nav_pub, cam_pose_pub;
+  ros::Publisher odom_nav_pub, cam_pose_pub, imu_pub;
   nav_msgs::Odometry odom_nav;
   sensor_msgs::Imu imu;
 
