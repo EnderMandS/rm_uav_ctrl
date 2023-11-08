@@ -62,7 +62,7 @@ void OdomSubPub::imuCb(const sensor_msgs::ImuConstPtr &msg) {
   odom_nav.twist.twist.angular.z = msg->angular_velocity.z;
   odom_nav.twist.twist.linear.x = msg->linear_acceleration.x;
   odom_nav.twist.twist.linear.y = msg->linear_acceleration.y;
-  odom_nav.twist.twist.linear.z = msg->linear_acceleration.z;
+  odom_nav.twist.twist.linear.z = msg->linear_acceleration.z + 9.81;
 
   imu.orientation = msg->orientation;
   imu.orientation_covariance = msg->orientation_covariance;

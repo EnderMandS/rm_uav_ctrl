@@ -136,8 +136,8 @@ void GridMap::initMap()
   unknown_pub_ = node_.advertise<sensor_msgs::PointCloud2>("/grid_map/unknown", 10);
 
   // MY_DEBUG
-  depth_F32_pub = it_F32.advertise("/grid_map/depth_F32", 1);
-  depth_U16_pub = it_U16.advertise("/grid_map/depth_U16", 1);
+  // depth_F32_pub = it_F32.advertise("/grid_map/depth_F32", 1);
+  // depth_U16_pub = it_U16.advertise("/grid_map/depth_U16", 1);
 
   md_.occ_need_update_ = false;
   md_.local_updated_ = false;
@@ -706,20 +706,20 @@ void GridMap::depthPoseCallback(const sensor_msgs::ImageConstPtr &img,
   if (img->encoding == sensor_msgs::image_encodings::TYPE_32FC1)
   {
     // MY_DEBUG TODO
-    auto F32_msg = cv_bridge::CvImage(
-      std_msgs::Header(),
-      sensor_msgs::image_encodings::TYPE_32FC1,
-      cv_ptr->image).toImageMsg();
-    depth_F32_pub.publish(F32_msg);
+    // auto F32_msg = cv_bridge::CvImage(
+    //   std_msgs::Header(),
+    //   sensor_msgs::image_encodings::TYPE_32FC1,
+    //   cv_ptr->image).toImageMsg();
+    // depth_F32_pub.publish(F32_msg);
 
     (cv_ptr->image).convertTo(cv_ptr->image, CV_16UC1, mp_.k_depth_scaling_factor_);
     // cv::normalize(cv_ptr->image, cv_ptr->image, 0, 65536, cv::NORM_MINMAX, CV_16UC1);
     
-    auto U16_msg = cv_bridge::CvImage(
-      std_msgs::Header(),
-      sensor_msgs::image_encodings::TYPE_16UC1,
-      cv_ptr->image).toImageMsg();
-    depth_U16_pub.publish(U16_msg);
+    // auto U16_msg = cv_bridge::CvImage(
+    //   std_msgs::Header(),
+    //   sensor_msgs::image_encodings::TYPE_16UC1,
+    //   cv_ptr->image).toImageMsg();
+    // depth_U16_pub.publish(U16_msg);
   }
   cv_ptr->image.copyTo(md_.depth_image_);
 
