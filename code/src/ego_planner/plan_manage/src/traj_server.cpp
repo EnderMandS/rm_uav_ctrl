@@ -204,7 +204,7 @@ void cmdCallback(const ros::TimerEvent &e)
   }
   time_last = time_now;
 
-  cmd.header.stamp = time_now;
+  cmd.header.stamp = ros::Time::now();
   cmd.header.frame_id = "world";
   cmd.trajectory_flag = quadrotor_msgs::PositionCommand::TRAJECTORY_STATUS_READY;
   cmd.trajectory_id = traj_id_;

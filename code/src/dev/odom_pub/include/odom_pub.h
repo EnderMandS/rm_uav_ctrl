@@ -24,6 +24,8 @@ private:
   ros::Subscriber odom_sub, imu_sub;
   ros::Publisher odom_nav_pub, cam_pose_pub, imu_pub;
   nav_msgs::Odometry odom_nav;
+  geometry_msgs::PoseStamped last_pos;
+  bool have_last_pose=false;
   sensor_msgs::Imu imu;
 
   tf2_ros::TransformBroadcaster br_world_to_base;

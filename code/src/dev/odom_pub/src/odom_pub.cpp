@@ -43,6 +43,22 @@ void OdomSubPub::odomCb(const geometry_msgs::PoseStampedConstPtr &msg) {
       -msg->pose.position.y;
   world_to_base.transform.translation.z = odom_nav.pose.pose.position.z =
       -msg->pose.position.z;
+
+  if (have_last_pose) {
+    auto dt = (msg->header.stamp - last_pos.header.stamp).toSec();
+    odom_nav.twist.twist.linear.x =
+        (msg->pose.position.x - last_pos.pose.position.x) / dt;
+    odom_nav.twist.twist.linear.y =
+        (msg->pose.position.y - last_pos.pose.position.y) / dt;
+    odom_nav.twist.twist.linear.z =
+        (msg->pose.position.z - last_pos.pose.position.z) / dt;
+  } else {
+    odom_nav.twist.twist.linear.x = odom_nav.twist.twist.linear.y =
+        odom_nav.twist.twist.linear.z = 0;
+  }
+  last_pos = *msg;
+  have_last_pose = true;
+
   world_to_base.transform.rotation.w = odom_nav.pose.pose.orientation.w =
       msg->pose.orientation.w;
   world_to_base.transform.rotation.x = odom_nav.pose.pose.orientation.x =
@@ -51,6 +67,7 @@ void OdomSubPub::odomCb(const geometry_msgs::PoseStampedConstPtr &msg) {
       msg->pose.orientation.y;
   world_to_base.transform.rotation.z = odom_nav.pose.pose.orientation.z =
       msg->pose.orientation.z;
+
   world_to_base.header.stamp = odom_nav.header.stamp = ros::Time::now();
   odom_nav_pub.publish(odom_nav);
   br_world_to_base.sendTransform(world_to_base);
@@ -60,9 +77,12 @@ void OdomSubPub::imuCb(const sensor_msgs::ImuConstPtr &msg) {
   odom_nav.twist.twist.angular.x = msg->angular_velocity.x;
   odom_nav.twist.twist.angular.y = msg->angular_velocity.y;
   odom_nav.twist.twist.angular.z = msg->angular_velocity.z;
-  odom_nav.twist.twist.linear.x = msg->linear_acceleration.x;
-  odom_nav.twist.twist.linear.y = msg->linear_acceleration.y;
-  odom_nav.twist.twist.linear.z = msg->linear_acceleration.z + 9.81;
+
+  // static double g_sum = 0;
+  // static int cnt = 0;
+  // g_sum += msg->linear_acceleration.z;
+  // ++cnt;
+  // ROS_INFO("Gravity avg: %f", g_sum/cnt);
 
   imu.orientation = msg->orientation;
   imu.orientation_covariance = msg->orientation_covariance;

@@ -1,5 +1,6 @@
 
 #include <plan_manage/ego_replan_fsm.h>
+#include <sensor_msgs/Imu.h>
 
 namespace ego_planner
 {
@@ -37,6 +38,7 @@ namespace ego_planner
     safety_timer_ = nh.createTimer(ros::Duration(0.05), &EGOReplanFSM::checkCollisionCallback, this);
 
     odom_sub_ = nh.subscribe("/odom_world", 1, &EGOReplanFSM::odometryCallback, this);
+    imu_sub_ = nh.subscribe("/imu", 1, &EGOReplanFSM::imuCallback, this);
 
     bspline_pub_ = nh.advertise<ego_planner::Bspline>("/planning/bspline", 10);
     data_disp_pub_ = nh.advertise<ego_planner::DataDisp>("/planning/data_display", 100);
@@ -119,7 +121,7 @@ namespace ego_planner
 
     bool success = false;
     end_pt_ << msg->poses[0].pose.position.x, msg->poses[0].pose.position.y, 1.0;
-    success = planner_manager_->planGlobalTraj(odom_pos_, odom_vel_, Eigen::Vector3d::Zero(), end_pt_, Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero());
+    success = planner_manager_->planGlobalTraj(odom_pos_, odom_vel_, odom_acc_, end_pt_, Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero());
 
     visualization_->displayGoalPoint(end_pt_, Eigen::Vector4d(0, 0.5, 0.5, 1), 0.3, 0);
 
@@ -172,6 +174,12 @@ namespace ego_planner
     odom_orient_.z() = msg->pose.pose.orientation.z;
 
     have_odom_ = true;
+  }
+
+  void EGOReplanFSM::imuCallback(const sensor_msgs::ImuConstPtr &msg){
+    odom_acc_(0) = msg->linear_acceleration.x;
+    odom_acc_(1) = msg->linear_acceleration.y;
+    odom_acc_(2) = msg->linear_acceleration.z + 9.80615;
   }
 
   void EGOReplanFSM::changeFSMExecState(FSM_EXEC_STATE new_state, string pos_call)
@@ -246,7 +254,7 @@ namespace ego_planner
     {
       start_pt_ = odom_pos_;
       start_vel_ = odom_vel_;
-      start_acc_.setZero();
+      start_acc_ = odom_acc_;
 
       // Eigen::Vector3d rot_x = odom_orient_.toRotationMatrix().block(0, 0, 3, 1);
       // start_yaw_(0)         = atan2(rot_x(1), rot_x(0));
@@ -393,7 +401,7 @@ namespace ego_planner
       if (t_cur < t_2_3 && t >= t_2_3) // If t_cur < t_2_3, only the first 2/3 partition of the trajectory is considered valid and will get checked.
         break;
 
-      if (map->getInflateOccupancy(info->position_traj_.evaluateDeBoorT(t)))
+      if (map->getInflateOccupancy(info->position_traj_.evaluateDeBoorT(t)))  // TODO
       {
         if (planFromCurrentTraj()) // Make a chance
         {
@@ -517,10 +525,6 @@ namespace ego_planner
       if (t < planner_manager_->global_data_.last_progress_time_ + 1e-5 && dist > planning_horizen_)
       {
         // todo
-        ROS_ERROR("last_progress_time_ ERROR !!!!!!!!!");
-        ROS_ERROR("last_progress_time_ ERROR !!!!!!!!!");
-        ROS_ERROR("last_progress_time_ ERROR !!!!!!!!!");
-        ROS_ERROR("last_progress_time_ ERROR !!!!!!!!!");
         ROS_ERROR("last_progress_time_ ERROR !!!!!!!!!");
         return;
       }
