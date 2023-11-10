@@ -1,6 +1,4 @@
-
 #include <plan_manage/ego_replan_fsm.h>
-#include <sensor_msgs/Imu.h>
 
 namespace ego_planner
 {
@@ -36,6 +34,7 @@ namespace ego_planner
     /* callback */
     exec_timer_ = nh.createTimer(ros::Duration(0.01), &EGOReplanFSM::execFSMCallback, this);
     safety_timer_ = nh.createTimer(ros::Duration(0.05), &EGOReplanFSM::checkCollisionCallback, this);
+    pos_check_timer_ = nh.createTimer(ros::Duration(0.1), &EGOReplanFSM::poseCheckCallabck, this);
 
     odom_sub_ = nh.subscribe("/odom_world", 1, &EGOReplanFSM::odometryCallback, this);
     imu_sub_ = nh.subscribe("/imu", 1, &EGOReplanFSM::imuCallback, this);
@@ -112,6 +111,7 @@ namespace ego_planner
 
   void EGOReplanFSM::waypointCallback(const nav_msgs::PathConstPtr &msg)
   {
+    replan_lock_.lock();
     if (msg->poses[0].pose.position.z < -0.1)
       return;
 
@@ -120,7 +120,7 @@ namespace ego_planner
     init_pt_ = odom_pos_;
 
     bool success = false;
-    end_pt_ << msg->poses[0].pose.position.x, msg->poses[0].pose.position.y, 1.0;
+    end_pt_ << msg->poses[0].pose.position.x, msg->poses[0].pose.position.y, msg->poses[0].pose.position.z;
     success = planner_manager_->planGlobalTraj(odom_pos_, odom_vel_, odom_acc_, end_pt_, Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero());
 
     visualization_->displayGoalPoint(end_pt_, Eigen::Vector4d(0, 0.5, 0.5, 1), 0.3, 0);
@@ -154,6 +154,7 @@ namespace ego_planner
     {
       ROS_ERROR("Unable to generate global trajectory!");
     }
+    replan_lock_.unlock();
   }
 
   void EGOReplanFSM::odometryCallback(const nav_msgs::OdometryConstPtr &msg)
@@ -424,6 +425,69 @@ namespace ego_planner
         }
         break;
       }
+    }
+  }
+
+  void EGOReplanFSM::poseCheckCallabck(const ros::TimerEvent &e) {
+    if (exec_state_!=EXEC_TRAJ) {
+      return;
+    }
+
+    LocalTrajData *info = &planner_manager_->local_data_;
+    ros::Time time_now = ros::Time::now();
+    double t_cur = (time_now - info->start_time_).toSec();
+    if ((t_cur/info->duration_)<0.2) {
+      return;
+    }
+
+    Eigen::Vector3d pos, vel, acc;
+    pos = info->position_traj_.evaluateDeBoorT(t_cur);
+    vel = info->velocity_traj_.evaluateDeBoorT(t_cur);
+    acc = info->acceleration_traj_.evaluateDeBoorT(t_cur);
+
+    if ((odom_pos_-pos).norm()>0.3 || 
+        (odom_vel_-vel).norm()>0.25 || 
+        (odom_acc_-acc).norm()>0.25) {
+      ROS_WARN("Global replanning, because odom have a great difference from planning expect.");
+      // nav_msgs::Path goal;
+      // geometry_msgs::PoseStamped p;
+      // replan_lock_.lock();
+      // p.pose.position.x = end_pt_[0];
+      // p.pose.position.y = end_pt_[1];
+      // p.pose.position.z = end_pt_[2];
+      // replan_lock_.unlock();
+      // goal.poses.push_back(p);
+      // goal.header.frame_id = "world";
+      // goal.header.stamp = ros::Time::now();
+      // const nav_msgs::PathConstPtr ptr_goal =  boost::make_shared<const nav_msgs::Path>(goal);
+      // EGOReplanFSM::waypointCallback(ptr_goal);
+
+      replan_lock_.lock();
+      trigger_ = true;
+      init_pt_ = odom_pos_;
+
+      bool success = false;
+      success = planner_manager_->planGlobalTraj(odom_pos_, odom_vel_, odom_acc_, end_pt_, Eigen::Vector3d::Zero(), Eigen::Vector3d::Zero());
+      visualization_->displayGoalPoint(end_pt_, Eigen::Vector4d(0, 0.5, 0.5, 1), 0.3, 0);
+      if (success) {
+        /*** display ***/
+        constexpr double step_size_t = 0.1;
+        int i_end = floor(planner_manager_->global_data_.global_duration_ / step_size_t);
+        vector<Eigen::Vector3d> gloabl_traj(i_end);
+        for (int i = 0; i < i_end; i++){
+          gloabl_traj[i] = planner_manager_->global_data_.global_traj_.evaluate(i * step_size_t);
+        }
+        end_vel_.setZero();
+        have_target_ = true;
+        have_new_target_ = true;
+        /*** FSM ***/
+        changeFSMExecState(GEN_NEW_TRAJ, "TRIG");
+        visualization_->displayGlobalPathList(gloabl_traj, 0.1, 0);
+      }
+      else {
+        ROS_ERROR("Unable to generate global trajectory!");
+      }
+      replan_lock_.unlock();
     }
   }
 

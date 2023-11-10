@@ -4,6 +4,7 @@
 #include <Eigen/Eigen>
 #include <algorithm>
 #include <iostream>
+#include <mutex>
 #include <nav_msgs/Path.h>
 #include <sensor_msgs/Imu.h>
 #include <ros/ros.h>
@@ -48,6 +49,7 @@ namespace ego_planner
     EGOPlannerManager::Ptr planner_manager_;
     PlanningVisualization::Ptr visualization_;
     ego_planner::DataDisp data_disp_;
+    std::mutex replan_lock_;
 
     /* parameters */
     int target_type_; // 1 mannual select, 2 hard code
@@ -74,7 +76,7 @@ namespace ego_planner
 
     /* ROS utils */
     ros::NodeHandle node_;
-    ros::Timer exec_timer_, safety_timer_;
+    ros::Timer exec_timer_, safety_timer_, pos_check_timer_;
     ros::Subscriber waypoint_sub_, odom_sub_, imu_sub_;
     ros::Publisher replan_pub_, new_pub_, bspline_pub_, data_disp_pub_;
 
@@ -94,6 +96,7 @@ namespace ego_planner
     /* ROS functions */
     void execFSMCallback(const ros::TimerEvent &e);
     void checkCollisionCallback(const ros::TimerEvent &e);
+    void poseCheckCallabck(const ros::TimerEvent &e);
     void waypointCallback(const nav_msgs::PathConstPtr &msg);
     void odometryCallback(const nav_msgs::OdometryConstPtr &msg);
     void imuCallback(const sensor_msgs::ImuConstPtr &msg);
