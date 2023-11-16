@@ -12,21 +12,29 @@ Pid::Pid(float p, float i, float d, float p_max, float i_max, float d_max,
   this->reset();
 }
 
-void Pid::reset() { out = p_out = i_out = d_out = last_error = 0; }
+void Pid::reset() { expect = out = p_out = i_out = d_out = last_error = 0; }
 
-void Pid::pidSet(float p, float i, float d) {
+void Pid::setPid(float p, float i, float d) {
   this->p = p;
   this->i = i;
   this->d = d;
 }
 
-void Pid::maxSet(float p_max, float i_max, float d_max) {
+void Pid::setMax(float out_max, float p_max, float i_max, float d_max) {
   this->p_max = p_max;
   this->i_max = i_max;
   this->d_max = d_max;
+  this->out_max = out_max;
 }
 
-float Pid::update(float dt, float expect, float now) {
+void Pid::setExpect(float expect) {
+  this->expect = expect;
+}
+
+float Pid::update(float t, float now) {
+  static float t_last;
+  float dt = t-t_last;
+  t_last = t;
   if (dt <= 0) {
     std::cout << "PID dt could not less than zero!";
     return 0;
