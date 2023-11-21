@@ -1,12 +1,13 @@
 #include "pid.h"
+#include "ros/time.h"
 #include <algorithm>
 #include <iostream>
 
 namespace PID {
 Pid::Pid(void) {}
-Pid::Pid(float p, float i, float d) : p(p), i(i), d(d) { this->reset(); }
-Pid::Pid(float p, float i, float d, float p_max, float i_max, float d_max,
-         float out_max)
+Pid::Pid(double p, double i, double d) : p(p), i(i), d(d) { this->reset(); }
+Pid::Pid(double p, double i, double d, double p_max, double i_max, double d_max,
+         double out_max)
     : p(p), i(i), d(d), p_max(p_max), i_max(i_max), d_max(d_max),
       out_max(out_max) {
   this->reset();
@@ -14,36 +15,48 @@ Pid::Pid(float p, float i, float d, float p_max, float i_max, float d_max,
 
 void Pid::reset() { expect = out = p_out = i_out = d_out = last_error = 0; }
 
-void Pid::setPid(float p, float i, float d) {
+double Pid::getTime() {
+  return ros::Time::now().toSec();
+}
+
+void Pid::setPid(double p, double i, double d) {
   this->p = p;
   this->i = i;
   this->d = d;
 }
 
-void Pid::setMax(float out_max, float p_max, float i_max, float d_max) {
+void Pid::setMax(double out_max, double p_max, double i_max, double d_max) {
   this->p_max = p_max;
   this->i_max = i_max;
   this->d_max = d_max;
   this->out_max = out_max;
 }
 
-void Pid::setExpect(float expect) {
+void Pid::setExpect(double expect) { this->expect = expect; }
+
+double Pid::update(double expect, double now) {
   this->expect = expect;
+  return update(now);
 }
 
-float Pid::update(float t, float now) {
-  static float t_last;
-  float dt = t-t_last;
-  t_last = t;
+double Pid::update(double now) {
+  this->now = now;
+  return update();
+}
+
+double Pid::update() {
+  static double t_last = getTime();
+  double t_now = getTime();
+  double dt = t_now - t_last;
+  t_last = t_now;
   if (dt <= 0) {
-    std::cout << "PID dt could not less than zero!";
     return 0;
   }
 
-  float error = expect - now;
+  double error = expect - now;
   p_out = dt * p * error;
   i_out += dt * i * error;
-  d_out = dt * d * (error - last_error);
+  d_out = d * (error - last_error) / dt;
   last_error = error;
 
   p_out = std::clamp(p_out, -p_max, p_max);
