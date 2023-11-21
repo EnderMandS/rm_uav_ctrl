@@ -89,6 +89,7 @@
   <node pkg="tf2_ros" type="static_transform_publisher" name="base_to_cam" args="0.26 0 0 -1.5707963 0 -1.5707963 base_link camera" output="screen"/>
   <node pkg="camera_convert" name="camera_convert" type="camera_convert" output="screen"/>
   <node pkg="odom_pub" name="odom_pub" type="odom_pub" output="screen"/>
+  <node pkg="flight_control" name="flight_control" type="flight_control" output="screen"/>
   
   <!-- use simulator -->
   <!-- <include file="$(find ego_planner)/launch/simulator.xml">
