@@ -1,6 +1,7 @@
 #include "flight_control.h"
 #include "airsim_ros/Land.h"
 #include "airsim_ros/Takeoff.h"
+#include "quadrotor_msgs/FsmCommand.h"
 #include "tf/LinearMath/Matrix3x3.h"
 #include "tf/LinearMath/Quaternion.h"
 #include "tf/transform_datatypes.h"
@@ -30,6 +31,7 @@ FlightControl::FlightControl(ros::NodeHandle &nh) : nh(nh) {
       "/airsim_node/drone_1/angle_rate_throttle_frame", 10);
   pos_sub = nh.subscribe("/position_cmd", 10, &FlightControl::posSubCb, this);
   odom_sub = nh.subscribe("/odom_nav", 10, &FlightControl::odomCb, this);
+  fsm_cmd_sub = nh.subscribe("/planning/fsm_cmd", 5, &FlightControl::fsmCmdCb, this);
   dy_cb_f = boost::bind(&FlightControl::dyCb, this, _1, _2);
   dy_server.setCallback(dy_cb_f);
 }
@@ -102,6 +104,15 @@ void FlightControl::posSubCb(
   }
   pid_chain.cal_lock.unlock();
   pid_chain.velocityYawUpdate(msg->header.stamp.toSec());
+}
+
+void FlightControl::fsmCmdCb(const quadrotor_msgs::FsmCommandConstPtr &msg) {
+  if (msg->trajectory_flag==quadrotor_msgs::FsmCommand::TRAJECTORY_STATUS_EXEC) {
+    pid_chain.ctrl_enable = true;
+  }
+  else {
+    pid_chain.ctrl_enable = false;
+  }
 }
 
 void FlightControl::dyCb(flight_pid::flight_pidConfig &cfg, uint32_t level) {

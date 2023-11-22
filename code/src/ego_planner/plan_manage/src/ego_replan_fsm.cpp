@@ -1,4 +1,6 @@
 #include <plan_manage/ego_replan_fsm.h>
+#include <std_msgs/Header.h>
+#include "quadrotor_msgs/FsmCommand.h"
 
 namespace ego_planner
 {
@@ -41,6 +43,7 @@ namespace ego_planner
 
     bspline_pub_ = nh.advertise<ego_planner::Bspline>("/planning/bspline", 10);
     data_disp_pub_ = nh.advertise<ego_planner::DataDisp>("/planning/data_display", 100);
+    fsm_cmd_pub_ = nh.advertise<quadrotor_msgs::FsmCommand>("/planning/fsm_cmd", 5);
 
     if (target_type_ == TARGET_TYPE::MANUAL_TARGET)
       waypoint_sub_ = nh.subscribe("/waypoint_generator/waypoints", 1, &EGOReplanFSM::waypointCallback, this);
@@ -223,6 +226,17 @@ namespace ego_planner
         cout << "wait for goal." << endl;
       fsm_num = 0;
     }
+
+    // publish fsm state to topic "/planning/fsm_cmd"
+    quadrotor_msgs::FsmCommand fsm_cmd;
+    if (exec_state_==EXEC_TRAJ) {
+      fsm_cmd.trajectory_flag = quadrotor_msgs::FsmCommand::TRAJECTORY_STATUS_EXEC;
+    }
+    else {
+      fsm_cmd.trajectory_flag = quadrotor_msgs::FsmCommand::TRAJECTORY_STATUS_EMPTY;
+    }
+    fsm_cmd.header = std_msgs::Header();
+    fsm_cmd_pub_.publish(fsm_cmd);
 
     switch (exec_state_)
     {

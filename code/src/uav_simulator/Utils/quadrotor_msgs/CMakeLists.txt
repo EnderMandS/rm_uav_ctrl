@@ -63,6 +63,7 @@ add_message_files(
   FILES
   AuxCommand.msg
   Corrections.msg
+  FsmCommand.msg
   Gains.msg
   OutputData.msg
   PositionCommand.msg

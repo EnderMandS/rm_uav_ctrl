@@ -4,6 +4,7 @@
 #include "airsim_ros/AngleRateThrottle.h"
 #include "geometry_msgs/PoseStamped.h"
 #include "nav_msgs/Odometry.h"
+#include "quadrotor_msgs/FsmCommand.h"
 #include "ros/ros.h"
 #include <cmath>
 #include <cstdint>
@@ -44,7 +45,7 @@ private:
   ros::NodeHandle &nh;
   ros::ServiceClient takeoff_client, land_client;
   ros::Publisher pwm_pub, angle_rate_pub;
-  ros::Subscriber pos_sub, odom_sub;
+  ros::Subscriber pos_sub, odom_sub, fsm_cmd_sub;
   ros::Timer cmd_pub_timer;
   nav_msgs::Odometry odom;
 
@@ -54,6 +55,7 @@ private:
   void cmdPubTimerCb(const ros::TimerEvent &);
   void odomCb(const nav_msgs::OdometryConstPtr &);
   void posSubCb(const quadrotor_msgs::PositionCommandConstPtr &);
+  void fsmCmdCb(const quadrotor_msgs::FsmCommandConstPtr &);
 
   // PID
   dynamic_reconfigure::Server<flight_pid::flight_pidConfig> dy_server;

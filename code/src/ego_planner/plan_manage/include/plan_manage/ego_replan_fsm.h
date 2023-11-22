@@ -78,7 +78,7 @@ namespace ego_planner
     ros::NodeHandle node_;
     ros::Timer exec_timer_, safety_timer_, pos_check_timer_;
     ros::Subscriber waypoint_sub_, odom_sub_, imu_sub_;
-    ros::Publisher replan_pub_, new_pub_, bspline_pub_, data_disp_pub_;
+    ros::Publisher replan_pub_, new_pub_, bspline_pub_, data_disp_pub_, fsm_cmd_pub_;
 
     /* helper functions */
     bool callReboundReplan(bool flag_use_poly_init, bool flag_randomPolyTraj); // front-end and back-end method
