@@ -2,38 +2,42 @@
 #define __FLIGHT_CONTROL_
 
 #include "airsim_ros/AngleRateThrottle.h"
+#include "airsim_ros/RotorPWM.h"
 #include "geometry_msgs/PoseStamped.h"
 #include "nav_msgs/Odometry.h"
+#include "pid.h"
 #include "quadrotor_msgs/FsmCommand.h"
+#include "quadrotor_msgs/PositionCommand.h"
 #include "ros/ros.h"
 #include <cmath>
 #include <cstdint>
 #include <dynamic_reconfigure/server.h>
-
-#include "airsim_ros/RotorPWM.h"
-#include "pid.h"
-#include "quadrotor_msgs/PositionCommand.h"
 #include <flight_control/flight_pidConfig.h>
 #include <mutex>
 
 class PidChain {
 public:
-  PidChain();
+  PidChain(ros::NodeHandle &);
   inline void positionSet(double x, double y, double z);
   inline void velocitySet(double x, double y, double z);
+  inline void accelSet(double x, double y, double z);
   inline void velocityYawSet(double x, double y, double z, double yaw);
   inline void angleSet(double pitch, double yaw, double roll);
   void positionUpdate(double t_now, double x_now, double y_now, double z_now);
   void velocityYawUpdate(double t_now);
-  
+  void accelYawUpdate(double t_now);
+  inline void reset();
+
   PID::Pid angle_pitch, angle_yaw, angle_roll;
   PID::Pid angle_vel_pitch, angle_vel_yaw, angle_vel_roll;
   PID::Pid thrust;
-  PID::Pid acc_x, acc_y; // no acc_z
+  PID::Pid acc_x, acc_y, acc_z;
   PID::Pid vel_x, vel_y, vel_z;
   PID::Pid position_x, position_y, position_z;
   std::mutex cal_lock;
-  bool ctrl_enable=false;
+  bool ctrl_enable = false;
+
+  ros::Publisher debug_info_pub;
 };
 
 class FlightControl {
@@ -59,7 +63,8 @@ private:
 
   // PID
   dynamic_reconfigure::Server<flight_pid::flight_pidConfig> dy_server;
-  dynamic_reconfigure::Server<flight_pid::flight_pidConfig>::CallbackType dy_cb_f;
+  dynamic_reconfigure::Server<flight_pid::flight_pidConfig>::CallbackType
+      dy_cb_f;
   PidChain pid_chain;
 
   void dyCb(flight_pid::flight_pidConfig &, uint32_t);
