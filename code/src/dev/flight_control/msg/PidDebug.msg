@@ -1,0 +1,7 @@
+Header header
+geometry_msgs/Vector3 position_expect
+geometry_msgs/Vector3 vel_expect
+geometry_msgs/Vector3 acc_expect
+geometry_msgs/Vector3 angle_expect
+geometry_msgs/Vector3 angle_vel_expect
+float64 thrust_epect
