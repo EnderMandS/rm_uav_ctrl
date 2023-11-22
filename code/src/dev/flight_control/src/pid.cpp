@@ -54,9 +54,11 @@ double Pid::update() {
   }
 
   double error = expect - now;
+  static double last_error = error; // use in first time init
+  this->last_error = last_error;
   p_out = dt * p * error;
   i_out += dt * i * error;
-  d_out = d * (error - last_error) / dt;
+  d_out = d * (error - this->last_error) / dt;
   last_error = error;
 
   p_out = std::clamp(p_out, -p_max, p_max);

@@ -21,7 +21,6 @@ public:
   void setMax(double out_max, double p_max, double i_max, double d_max);
   void setExpect(double expect);
   void reset();
-
   double getTime();
 
 private:
