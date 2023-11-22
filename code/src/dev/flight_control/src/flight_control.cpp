@@ -1,7 +1,9 @@
 #include "flight_control.h"
 #include "airsim_ros/Land.h"
 #include "airsim_ros/Takeoff.h"
+#include "flight_control/PidDebug.h"
 #include "quadrotor_msgs/FsmCommand.h"
+#include "ros/message_traits.h"
 #include "ros/time.h"
 #include "tf/LinearMath/Matrix3x3.h"
 #include "tf/LinearMath/Quaternion.h"
@@ -9,7 +11,6 @@
 #include "tf2/LinearMath/Quaternion.h"
 #include <boost/bind/bind.hpp>
 #include <cmath>
-#include "flight_control/PidDebug.h"
 
 int main(int argc, char **argv) {
   ros::init(argc, argv, "flight_control");
@@ -60,13 +61,22 @@ void FlightControl::odomCb(const nav_msgs::OdometryConstPtr &msg) {
   pid_chain.angle_vel_roll.now = msg->twist.twist.angular.x / M_PI * 180;
   pid_chain.cal_lock.unlock();
 
-  pid_chain.accelYawUpdate(msg->header.stamp.now().toSec());
+  pid_chain.accelYawUpdate();
+}
+void FlightControl::imuCb(const sensor_msgs::ImuConstPtr &msg) {
+  pid_chain.cal_lock.lock();
+  pid_chain.acc_x.now = msg->linear_acceleration.x;
+  pid_chain.acc_y.now = msg->linear_acceleration.y;
+  pid_chain.acc_z.now = msg->linear_acceleration.z + 9.80615;
+  pid_chain.cal_lock.unlock();
+  pid_chain.accelYawUpdate();
 }
 void FlightControl::cmdPubTimerCb(const ros::TimerEvent &e) {
-  if (pid_chain.ctrl_enable == false) {
-    return;
-  }
-  pid_chain.accelYawUpdate(e.current_real.now().toSec());
+  // if (pid_chain.ctrl_enable == false) {
+  //   return;
+  // }
+  pid_chain.accelYawUpdate();
+  pid_chain.pubPidDebug();
 
   pid_chain.cal_lock.lock();
   angle_rate.pitchRate = pid_chain.angle_vel_pitch.expect / 180 * M_PI;
@@ -101,7 +111,7 @@ void FlightControl::posSubCb(
   pid_chain.angle_yaw.setExpect(msg->yaw);
   pid_chain.angle_vel_yaw.setExpect(msg->yaw_dot);
   pid_chain.cal_lock.unlock();
-  pid_chain.accelYawUpdate(msg->header.stamp.toSec());
+  pid_chain.accelYawUpdate();
 }
 void FlightControl::fsmCmdCb(const quadrotor_msgs::FsmCommandConstPtr &msg) {
   if (msg->trajectory_flag ==
@@ -153,7 +163,8 @@ void FlightControl::dyCb(flight_pid::flight_pidConfig &cfg, uint32_t level) {
 
   pid_chain.angle_pitch.setPid(cfg.angle_pitch_p, cfg.angle_pitch_i,
                                cfg.angle_pitch_d);
-  // pid_chain.angle_yaw.setPid(cfg.angle_yaw_p, cfg.angle_yaw_i, cfg.angle_yaw_d);
+  // pid_chain.angle_yaw.setPid(cfg.angle_yaw_p, cfg.angle_yaw_i,
+  // cfg.angle_yaw_d);
   pid_chain.angle_roll.setPid(cfg.angle_roll_p, cfg.angle_roll_i,
                               cfg.angle_roll_d);
   pid_chain.angle_pitch.setMax(cfg.angle_pitch_out_max, cfg.angle_pitch_p_max,
@@ -180,7 +191,7 @@ void FlightControl::dyCb(flight_pid::flight_pidConfig &cfg, uint32_t level) {
   //     cfg.angle_vel_roll_out_max, cfg.angle_vel_roll_p_max,
   //     cfg.angle_vel_roll_i_max, cfg.angle_vel_roll_d_max);
   pid_chain.cal_lock.unlock();
-  pid_chain.accelYawUpdate(ros::Time::now().toSec());
+  pid_chain.accelYawUpdate();
 }
 
 /* ---------------------------------
@@ -190,56 +201,59 @@ void FlightControl::dyCb(flight_pid::flight_pidConfig &cfg, uint32_t level) {
 PidChain::PidChain(ros::NodeHandle &nh) {
   debug_info_pub = nh.advertise<flight_control::PidDebug>("/pid_debug", 10);
   reset();
+  vel_z.setExpect(1);
 }
-void PidChain::positionUpdate(double t_now, double x_now, double y_now,
-                              double z_now) {
+void PidChain::positionUpdate(double x_now, double y_now, double z_now) {
   cal_lock.lock();
-  vel_x.update(t_now, position_x.update(t_now, x_now));
-  vel_y.update(t_now, position_y.update(t_now, y_now));
-  vel_z.update(t_now, position_z.update(t_now, z_now));
+  // vel_x.update(t_now, position_x.update(t_now, x_now));
+  // vel_y.update(t_now, position_y.update(t_now, y_now));
+  // vel_z.update(t_now, position_z.update(t_now, z_now));
   cal_lock.unlock();
   // TODO
 }
-void PidChain::velocityYawUpdate(double t_now) {
+void PidChain::velocityYawUpdate() {
   // expects were set in function FlightControl::posSubCb()
   // measure were set in function FlightControl::odomCb()
   if (ctrl_enable == false) {
     return;
   }
   cal_lock.lock();
-  acc_x.expect = vel_x.update(t_now);
-  angle_pitch.expect = acc_x.update(t_now);
-  angle_vel_pitch.expect = angle_pitch.update(t_now);
-  // angle_vel_pitch.update(t_now);
+  acc_x.expect = vel_x.update();
+  angle_pitch.expect = acc_x.update();
+  angle_vel_pitch.expect = angle_pitch.update();
+  // angle_vel_pitch.update();
 
-  // angle_vel_yaw.update(t_now);
+  // angle_vel_yaw.update();
 
-  acc_y.expect = vel_y.update(t_now);
-  angle_roll.expect = acc_y.update(t_now);
-  angle_vel_roll.expect = angle_roll.update(t_now);
-  // angle_vel_roll.update(t_now);
+  acc_y.expect = vel_y.update();
+  angle_roll.expect = acc_y.update();
+  angle_vel_roll.expect = angle_roll.update();
+  // angle_vel_roll.update();
 
-  acc_z.expect = vel_z.update(t_now);
-  thrust.expect = acc_z.update(t_now);
-  // thrust.update(t_now);
+  acc_z.expect = vel_z.update();
+  thrust.expect = acc_z.update();
+  // thrust.update();
   cal_lock.unlock();
 }
-void PidChain::accelYawUpdate(double t_now) {
+void PidChain::accelYawUpdate() {
   // expects were set in function FlightControl::posSubCb()
   // measures were set in function FlightControl::odomCb()
-  if (ctrl_enable == false) {
-    return;
-  }
+  // if (ctrl_enable == false) {
+  //   return;
+  // }
   cal_lock.lock();
 
-  angle_pitch.setExpect(acc_x.update(t_now));
-  angle_vel_pitch.setExpect(angle_pitch.update(t_now));
+  // angle_pitch.setExpect(acc_x.update());
+  // angle_vel_pitch.setExpect(angle_pitch.update());
 
-  angle_roll.setExpect(acc_y.update(t_now));
-  angle_vel_roll.setExpect(angle_roll.update(t_now));
+  // angle_roll.setExpect(acc_y.update());
+  // angle_vel_roll.setExpect(angle_roll.update());
 
-  acc_z.setExpect(vel_z.update(t_now));
-  thrust.setExpect(acc_z.update(t_now));
+  acc_z.setExpect(vel_z.update());
+  thrust.setExpect(acc_z.update());
+  if (thrust.expect<0) {
+    thrust.setExpect(0);
+  }
 
   cal_lock.unlock();
 }
@@ -297,4 +311,42 @@ inline void PidChain::reset() {
   angle_vel_yaw.reset();
   angle_vel_roll.reset();
   cal_lock.unlock();
+}
+void PidChain::pubPidDebug() {
+  flight_control::PidDebug info;
+  cal_lock.lock();
+  info.position_expect.x = position_x.expect;
+  info.position_expect.y = position_y.expect;
+  info.position_expect.z = position_z.expect;
+  info.position_now.x = position_x.now;
+  info.position_now.y = position_y.now;
+  info.position_now.z = position_z.now;
+  info.vel_expect.x = vel_x.expect;
+  info.vel_expect.y = vel_y.expect;
+  info.vel_expect.z = vel_z.expect;
+  info.vel_now.x = vel_x.now;
+  info.vel_now.y = vel_y.now;
+  info.vel_now.z = vel_z.now;
+  info.acc_expect.x = acc_x.expect;
+  info.acc_expect.y = acc_y.expect;
+  info.acc_expect.z = acc_z.expect;
+  info.acc_now.x = acc_x.now;
+  info.acc_now.y = acc_y.now;
+  info.acc_now.z = acc_z.now;
+  info.angle_expect.x = angle_roll.expect;
+  info.angle_expect.y = angle_pitch.expect;
+  info.angle_expect.z = angle_yaw.expect;
+  info.angle_now.x = angle_roll.now;
+  info.angle_now.y = angle_pitch.now;
+  info.angle_now.z = angle_yaw.now;
+  info.angle_vel_expect.x = angle_vel_roll.expect;
+  info.angle_vel_expect.y = angle_vel_pitch.expect;
+  info.angle_vel_expect.z = angle_vel_yaw.expect;
+  info.angle_vel_now.x = angle_vel_roll.now;
+  info.angle_vel_now.y = angle_vel_pitch.now;
+  info.angle_vel_now.z = angle_vel_yaw.now;
+  info.thrust_epect = thrust.expect;
+  cal_lock.unlock();
+  info.header.stamp = ros::Time::now();
+  debug_info_pub.publish(info);
 }

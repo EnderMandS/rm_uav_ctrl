@@ -14,6 +14,7 @@
 #include <dynamic_reconfigure/server.h>
 #include <flight_control/flight_pidConfig.h>
 #include <mutex>
+#include "sensor_msgs/Imu.h"
 
 class PidChain {
 public:
@@ -23,10 +24,11 @@ public:
   inline void accelSet(double x, double y, double z);
   inline void velocityYawSet(double x, double y, double z, double yaw);
   inline void angleSet(double pitch, double yaw, double roll);
-  void positionUpdate(double t_now, double x_now, double y_now, double z_now);
-  void velocityYawUpdate(double t_now);
-  void accelYawUpdate(double t_now);
+  void positionUpdate(double x_now, double y_now, double z_now);
+  void velocityYawUpdate();
+  void accelYawUpdate();
   inline void reset();
+  void pubPidDebug();
 
   PID::Pid angle_pitch, angle_yaw, angle_roll;
   PID::Pid angle_vel_pitch, angle_vel_yaw, angle_vel_roll;
@@ -37,6 +39,7 @@ public:
   std::mutex cal_lock;
   bool ctrl_enable = false;
 
+private:
   ros::Publisher debug_info_pub;
 };
 
@@ -58,6 +61,7 @@ private:
 
   void cmdPubTimerCb(const ros::TimerEvent &);
   void odomCb(const nav_msgs::OdometryConstPtr &);
+  void imuCb(const sensor_msgs::ImuConstPtr &);
   void posSubCb(const quadrotor_msgs::PositionCommandConstPtr &);
   void fsmCmdCb(const quadrotor_msgs::FsmCommandConstPtr &);
 

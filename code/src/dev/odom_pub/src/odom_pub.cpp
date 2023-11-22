@@ -47,11 +47,11 @@ void OdomSubPub::odomCb(const geometry_msgs::PoseStampedConstPtr &msg) {
   if (have_last_pose) {
     auto dt = (msg->header.stamp - last_pos.header.stamp).toSec();
     odom_nav.twist.twist.linear.x =
-        (msg->pose.position.x - last_pos.pose.position.x) / dt;
+        -(msg->pose.position.x - last_pos.pose.position.x) / dt;
     odom_nav.twist.twist.linear.y =
-        (msg->pose.position.y - last_pos.pose.position.y) / dt;
+        -(msg->pose.position.y - last_pos.pose.position.y) / dt;
     odom_nav.twist.twist.linear.z =
-        (msg->pose.position.z - last_pos.pose.position.z) / dt;
+        -(msg->pose.position.z - last_pos.pose.position.z) / dt;
   } else {
     odom_nav.twist.twist.linear.x = odom_nav.twist.twist.linear.y =
         odom_nav.twist.twist.linear.z = 0;

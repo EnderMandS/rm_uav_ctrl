@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   quadrotor_msgs
   geometry_msgs
+  sensor_msgs
   dynamic_reconfigure
   message_generation
 )
