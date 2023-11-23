@@ -19,4 +19,4 @@ WORKDIR /home/$USERNAME/UAV
 
 USER $USERNAME
 # ENTRYPOINT [ "/bin/zsh" ]
-ENTRYPOINT [ "/home/$USERNAME/UAV/setup.zsh" ]
+ENTRYPOINT [ "/home/\$USERNAME/UAV/setup.zsh" ]
