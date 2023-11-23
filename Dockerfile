@@ -13,10 +13,10 @@ WORKDIR /home/$USERNAME/UAV/code/
 RUN . /opt/ros/${ROS_DISTRO}/setup.sh && catkin_make --only-pkg-with-deps airsim_ros && \
     . devel/setup.sh && catkin_make --only-pkg-with-deps basic_dev && \
     catkin_make -DCATKIN_WHITELIST_PACKAGES=""
-RUN . devel/setup.sh && catkin_make -DCATKIN_WHITELIST_PACKAGES=""
+# RUN . devel/setup.sh && catkin_make -DCATKIN_WHITELIST_PACKAGES=""
 
 WORKDIR /home/$USERNAME/UAV
 
 USER $USERNAME
 # ENTRYPOINT [ "/bin/zsh" ]
-ENTRYPOINT [ "/home/\$USERNAME/UAV/setup.zsh" ]
+CMD [ "/home/m/UAV/setup.zsh" ]
