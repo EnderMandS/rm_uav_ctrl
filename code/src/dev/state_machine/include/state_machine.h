@@ -17,10 +17,12 @@ private:
   int circle_now_index = 0;
   int waypoint_list[13]={0,1,2,3,4,5,6,7,12,13,14,15,16};
   airsim_ros::CirclePoses circle_poses;
+  nav_msgs::Odometry pose_now;
 
   void circlePoseCb(const airsim_ros::CirclePosesConstPtr &);
   void odomCb(const nav_msgs::OdometryConstPtr &);
-  void pubNavPath();
+  bool pubNavPath();
+  void calFastestWaypoint();
 };
 
 #endif
