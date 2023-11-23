@@ -25,4 +25,4 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           push: true
-          tags: endermands/rm_uav_ctrl:latest
+          tags: endermands/rm_uav_ctrl:commit
