@@ -12,7 +12,7 @@ public:
 
 private:
   ros::Subscriber circle_sub, odom_sub;
-  ros::Publisher waypoint_pub;
+  ros::Publisher waypoint_pub, marker_pub;
 
   int circle_now_index = 0;
   int waypoint_list[13]={0,1,2,3,4,5,6,7,12,13,14,15,16};
@@ -22,7 +22,8 @@ private:
   void circlePoseCb(const airsim_ros::CirclePosesConstPtr &);
   void odomCb(const nav_msgs::OdometryConstPtr &);
   bool pubNavPath();
-  void calFastestWaypoint();
+  bool calFastestWaypoint();
+  bool pubVisualizeCirclePose();
 };
 
 #endif

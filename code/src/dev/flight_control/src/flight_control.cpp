@@ -3,14 +3,11 @@
 #include "airsim_ros/Takeoff.h"
 #include "flight_control/PidDebug.h"
 #include "quadrotor_msgs/FsmCommand.h"
-#include "ros/message_traits.h"
 #include "ros/time.h"
 #include "tf/LinearMath/Matrix3x3.h"
 #include "tf/LinearMath/Quaternion.h"
 #include "tf/transform_datatypes.h"
-#include "tf2/LinearMath/Quaternion.h"
 #include <boost/bind/bind.hpp>
-#include <cmath>
 
 int main(int argc, char **argv) {
   ros::init(argc, argv, "flight_control");
@@ -201,7 +198,7 @@ void FlightControl::dyCb(flight_pid::flight_pidConfig &cfg, uint32_t level) {
 PidChain::PidChain(ros::NodeHandle &nh) {
   debug_info_pub = nh.advertise<flight_control::PidDebug>("/pid_debug", 10);
   reset();
-  vel_z.setExpect(1);
+  // vel_z.setExpect(1);
 }
 void PidChain::positionUpdate(double x_now, double y_now, double z_now) {
   cal_lock.lock();
