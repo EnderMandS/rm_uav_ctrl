@@ -33,8 +33,7 @@ FlightControl::FlightControl(ros::NodeHandle &nh) : nh(nh), pid_chain(nh) {
   odom_sub = nh.subscribe("/odom_nav", 1, &FlightControl::odomCb, this);
   fsm_cmd_sub =
       nh.subscribe("/planning/fsm_cmd", 1, &FlightControl::fsmCmdCb, this);
-  imu_sub = nh.subscribe("airsim_node/drone_1/imu/imu", 1,
-                         &FlightControl::imuCb, this);
+  imu_sub = nh.subscribe("/imu", 1, &FlightControl::imuCb, this);
   dy_cb_f = boost::bind(&FlightControl::dyCb, this, _1, _2);
   dy_server.setCallback(dy_cb_f);
 }
@@ -78,7 +77,7 @@ void FlightControl::cmdPubTimerCb(const ros::TimerEvent &e) {
   pid_chain.pubPidDebug();
 
   pid_chain.cal_lock.lock();
-  angle_rate.pitchRate = pid_chain.angle_vel_pitch.expect / 180 * M_PI;
+  angle_rate.pitchRate = -pid_chain.angle_vel_pitch.expect / 180 * M_PI;
   angle_rate.yawRate = pid_chain.angle_vel_yaw.expect / 180 * M_PI;
   angle_rate.rollRate = pid_chain.angle_vel_roll.expect / 180 * M_PI;
   angle_rate.throttle = pid_chain.thrust.expect;
@@ -201,6 +200,7 @@ PidChain::PidChain(ros::NodeHandle &nh) {
   debug_info_pub = nh.advertise<flight_control::PidDebug>("/pid_debug", 10);
   reset();
   vel_z.setExpect(0.5);
+  acc_x.setExpect(0.1);
 }
 void PidChain::positionUpdate(double x_now, double y_now, double z_now) {
   cal_lock.lock();
@@ -242,15 +242,15 @@ void PidChain::accelYawUpdate() {
   // }
   cal_lock.lock();
 
-  // angle_pitch.setExpect(acc_x.update());
-  // angle_vel_pitch.setExpect(angle_pitch.update());
+  angle_pitch.setExpect(acc_x.update());
+  angle_vel_pitch.setExpect(angle_pitch.update());
 
   // angle_roll.setExpect(acc_y.update());
   // angle_vel_roll.setExpect(angle_roll.update());
 
-  acc_z.setExpect(vel_z.update());
-  acc_z.update();
-  thrust.setExpect((acc_z.out + acc_z.out_max) / (2 * acc_z.out_max));
+  vel_z.update();
+  // acc_z.update();
+  thrust.setExpect((vel_z.out + vel_z.out_max) / (2 * vel_z.out_max));
 
   cal_lock.unlock();
 }
