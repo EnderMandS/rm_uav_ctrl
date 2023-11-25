@@ -29,10 +29,16 @@ StateMachine::StateMachine(ros::NodeHandle &nh) {
       nh.advertise<nav_msgs::Path>("/waypoint_generator/waypoints", 1);
   pose_now.header.seq = 0;
   marker_pub = nh.advertise<visualization_msgs::Marker>("/circle_marker", 17);
+  pub_nav_timer =
+      nh.createTimer(ros::Duration(5), &StateMachine::pubNavTimerCb, this);
   ROS_INFO("State machine init success.");
 }
 void StateMachine::circlePoseCb(const airsim_ros::CirclePosesConstPtr &msg) {
   circle_poses.poses = msg->poses;
+  for (int i=0; i<circle_poses.poses.size(); ++i) {
+    circle_poses.poses[i].position.y = -circle_poses.poses[i].position.y;
+    circle_poses.poses[i].position.z = -circle_poses.poses[i].position.z;
+  }
   static bool cal_done = false, visual_done = false;
   if (!cal_done) {
     if (calFastestWaypoint()) {
@@ -61,13 +67,29 @@ void StateMachine::odomCb(const nav_msgs::OdometryConstPtr &msg) {
           DEAD_ABS &&
       abs(msg->pose.pose.position.z -
           circle_poses.poses[waypoint_list[circle_now_index]].position.z) <=
-          DEAD_ABS) {
-    ++circle_now_index;
+          DEAD_ABS &&
+      circle_now_index <
+          (sizeof(waypoint_list) / sizeof(waypoint_list[0]) - 1)) {
+    if (pubNavPath(circle_now_index + 1)) {
+      ++circle_now_index;
+    }
   }
   pose_now = *msg;
 }
-bool StateMachine::pubNavPath() {
+void StateMachine::pubNavTimerCb(const ros::TimerEvent &e) {
+  static bool first_pub = false;
+  // if (!first_pub) {
+  //   first_pub = pubNavPath(0);
+  // }
+}
+bool StateMachine::pubNavPath(int circle_index) {
   if (pose_now.header.seq == 0) { // no odom return
+    ROS_INFO("No odom message. Wait to publish nav path.");
+    return false;
+  }
+  if (waypoint_pub.getNumSubscribers() < 1) {
+    ROS_WARN("No subscriber on topic /waypoint_generator/waypoints, publish "
+             "nav path fail.");
     return false;
   }
 
@@ -77,11 +99,11 @@ bool StateMachine::pubNavPath() {
   waypoint.header.frame_id = "world";
   pose.header.frame_id = "world";
   pose.pose.position.x =
-      circle_poses.poses[waypoint_list[circle_now_index]].position.x;
+      circle_poses.poses[waypoint_list[circle_index]].position.x;
   pose.pose.position.y =
-      circle_poses.poses[waypoint_list[circle_now_index]].position.y;
+      circle_poses.poses[waypoint_list[circle_index]].position.y;
   pose.pose.position.z =
-      circle_poses.poses[waypoint_list[circle_now_index]].position.z;
+      circle_poses.poses[waypoint_list[circle_index]].position.z;
 
   tf2::Quaternion circle_q, now_q;
   now_q.setW(pose_now.pose.pose.orientation.w);
@@ -90,13 +112,11 @@ bool StateMachine::pubNavPath() {
   now_q.setZ(pose_now.pose.pose.orientation.z);
   double r, p, y;
   tf2::Matrix3x3(now_q).getRPY(r, p, y); // check yaw direction
-  if (abs(y - circle_poses.poses[waypoint_list[circle_now_index]].yaw) >
-      M_PI_2) {
-    circle_q.setRPY(
-        0, 0, circle_poses.poses[waypoint_list[circle_now_index]].yaw + M_PI);
-  } else {
+  if (abs(y - circle_poses.poses[waypoint_list[circle_index]].yaw) > M_PI_2) {
     circle_q.setRPY(0, 0,
-                    circle_poses.poses[waypoint_list[circle_now_index]].yaw);
+                    circle_poses.poses[waypoint_list[circle_index]].yaw + M_PI);
+  } else {
+    circle_q.setRPY(0, 0, circle_poses.poses[waypoint_list[circle_index]].yaw);
   }
 
   pose.pose.orientation.w = circle_q.w();
@@ -195,8 +215,8 @@ bool StateMachine::pubVisualizeCirclePose() {
   tf2::Quaternion q;
   for (int i = 0; i < circle_poses.poses.size(); ++i) {
     marker.pose.position.x = circle_poses.poses[i].position.x;
-    marker.pose.position.y = -circle_poses.poses[i].position.y;
-    marker.pose.position.z = -circle_poses.poses[i].position.z;
+    marker.pose.position.y = circle_poses.poses[i].position.y;
+    marker.pose.position.z = circle_poses.poses[i].position.z;
     q.setRPY(0, 0, circle_poses.poses[i].yaw);
     marker.pose.orientation.w = q.w();
     marker.pose.orientation.x = q.x();
