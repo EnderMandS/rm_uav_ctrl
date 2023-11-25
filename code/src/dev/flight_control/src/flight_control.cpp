@@ -25,16 +25,16 @@ FlightControl::FlightControl(ros::NodeHandle &nh) : nh(nh), pid_chain(nh) {
   land_client = nh.serviceClient<airsim_ros::Land>("/airsim_node/drone_1/land");
   pwm_pub = nh.advertise<airsim_ros::RotorPWM>(
       "/airsim_node/drone_1/rotor_pwm_cmd", 1);
-  cmd_pub_timer = nh.createTimer(ros::Duration(0.005),
-                                 &FlightControl::cmdPubTimerCb, this);
+  cmd_pub_timer =
+      nh.createTimer(ros::Duration(0.005), &FlightControl::cmdPubTimerCb, this);
   angle_rate_pub = nh.advertise<airsim_ros::AngleRateThrottle>(
       "/airsim_node/drone_1/angle_rate_throttle_frame", 1);
   pos_sub = nh.subscribe("/position_cmd", 1, &FlightControl::posSubCb, this);
   odom_sub = nh.subscribe("/odom_nav", 1, &FlightControl::odomCb, this);
   fsm_cmd_sub =
       nh.subscribe("/planning/fsm_cmd", 1, &FlightControl::fsmCmdCb, this);
-  imu_sub =
-      nh.subscribe("airsim_node/drone_1/imu/imu", 1, &FlightControl::imuCb, this);
+  imu_sub = nh.subscribe("airsim_node/drone_1/imu/imu", 1,
+                         &FlightControl::imuCb, this);
   dy_cb_f = boost::bind(&FlightControl::dyCb, this, _1, _2);
   dy_server.setCallback(dy_cb_f);
 }
@@ -249,10 +249,8 @@ void PidChain::accelYawUpdate() {
   // angle_vel_roll.setExpect(angle_roll.update());
 
   acc_z.setExpect(vel_z.update());
-  thrust.setExpect(acc_z.update());
-  if (thrust.expect<0) {
-    thrust.setExpect(0);
-  }
+  acc_z.update();
+  thrust.setExpect((acc_z.out + acc_z.out_max) / (2 * acc_z.out_max));
 
   cal_lock.unlock();
 }
