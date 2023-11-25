@@ -99,7 +99,7 @@ void OdomSubPub::tf_timerCb(const ros::TimerEvent &event) {
   try {
     cam_tf_stamp = tf_buff.lookupTransform("world", "camera", ros::Time(0));
   } catch (tf2::TransformException &e) {
-    ROS_WARN("%s", e.what());
+    // ROS_WARN("%s", e.what());
     return;
   }
   cam_pose.pose.position.x = cam_tf_stamp.transform.translation.x;
