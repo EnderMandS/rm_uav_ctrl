@@ -1,7 +1,6 @@
 #include "pid.h"
 #include "ros/time.h"
 #include <algorithm>
-#include <iostream>
 
 namespace PID {
 Pid::Pid(void) {}
@@ -49,8 +48,8 @@ double Pid::update() {
   double t_now = getTime();
   double dt = t_now - t_last;
   t_last = t_now;
-  if (dt <= 0) {
-    return 0;
+  if (dt <= 0.f) {
+    return out;
   }
 
   double error = expect - now;

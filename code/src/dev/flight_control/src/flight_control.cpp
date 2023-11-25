@@ -24,15 +24,17 @@ FlightControl::FlightControl(ros::NodeHandle &nh) : nh(nh), pid_chain(nh) {
       nh.serviceClient<airsim_ros::Takeoff>("/airsim_node/drone_1/takeoff");
   land_client = nh.serviceClient<airsim_ros::Land>("/airsim_node/drone_1/land");
   pwm_pub = nh.advertise<airsim_ros::RotorPWM>(
-      "/airsim_node/drone_1/rotor_pwm_cmd", 10);
-  cmd_pub_timer = nh.createTimer(ros::Duration(1.f / 200),
+      "/airsim_node/drone_1/rotor_pwm_cmd", 1);
+  cmd_pub_timer = nh.createTimer(ros::Duration(0.005),
                                  &FlightControl::cmdPubTimerCb, this);
   angle_rate_pub = nh.advertise<airsim_ros::AngleRateThrottle>(
-      "/airsim_node/drone_1/angle_rate_throttle_frame", 10);
-  pos_sub = nh.subscribe("/position_cmd", 10, &FlightControl::posSubCb, this);
-  odom_sub = nh.subscribe("/odom_nav", 10, &FlightControl::odomCb, this);
+      "/airsim_node/drone_1/angle_rate_throttle_frame", 1);
+  pos_sub = nh.subscribe("/position_cmd", 1, &FlightControl::posSubCb, this);
+  odom_sub = nh.subscribe("/odom_nav", 1, &FlightControl::odomCb, this);
   fsm_cmd_sub =
-      nh.subscribe("/planning/fsm_cmd", 5, &FlightControl::fsmCmdCb, this);
+      nh.subscribe("/planning/fsm_cmd", 1, &FlightControl::fsmCmdCb, this);
+  imu_sub =
+      nh.subscribe("airsim_node/drone_1/imu/imu", 1, &FlightControl::imuCb, this);
   dy_cb_f = boost::bind(&FlightControl::dyCb, this, _1, _2);
   dy_server.setCallback(dy_cb_f);
 }
@@ -198,7 +200,7 @@ void FlightControl::dyCb(flight_pid::flight_pidConfig &cfg, uint32_t level) {
 PidChain::PidChain(ros::NodeHandle &nh) {
   debug_info_pub = nh.advertise<flight_control::PidDebug>("/pid_debug", 10);
   reset();
-  // vel_z.setExpect(1);
+  vel_z.setExpect(0.5);
 }
 void PidChain::positionUpdate(double x_now, double y_now, double z_now) {
   cal_lock.lock();

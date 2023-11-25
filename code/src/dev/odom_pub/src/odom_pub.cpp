@@ -17,7 +17,7 @@ void OdomSubPub::init(ros::NodeHandle &nh) {
   odom_sub = nh.subscribe("/airsim_node/drone_1/pose_gt", 10,
                           &OdomSubPub::odomCb, this);
   imu_sub =
-      nh.subscribe("airsim_node/drone_1/imu/imu", 1, &OdomSubPub::imuCb, this);
+      nh.subscribe("airsim_node/drone_1/imu/imu", 10, &OdomSubPub::imuCb, this);
 
   imu_pub = nh.advertise<sensor_msgs::Imu>("/imu", 10);
 
