@@ -24,6 +24,8 @@ public:
   double getTime();
 
 private:
+  bool init=false;
+  double t_last;
   double last_error = 0;
 };
 } // namespace PID
