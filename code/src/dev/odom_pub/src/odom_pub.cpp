@@ -1,4 +1,6 @@
 #include "odom_pub.h"
+#include "tf2/LinearMath/Matrix3x3.h"
+#include "tf2/LinearMath/Quaternion.h"
 
 int main(int argc, char **argv) {
   ros::init(argc, argv, "odom_puh");
@@ -38,7 +40,7 @@ void OdomSubPub::init(ros::NodeHandle &nh) {
 
 void OdomSubPub::odomCb(const geometry_msgs::PoseStampedConstPtr &msg) {
   world_to_base.transform.translation.x = odom_nav.pose.pose.position.x =
-      -msg->pose.position.x;
+      msg->pose.position.x;
   world_to_base.transform.translation.y = odom_nav.pose.pose.position.y =
       -msg->pose.position.y;
   world_to_base.transform.translation.z = odom_nav.pose.pose.position.z =
@@ -47,7 +49,7 @@ void OdomSubPub::odomCb(const geometry_msgs::PoseStampedConstPtr &msg) {
   if (have_last_pose) {
     auto dt = (msg->header.stamp - last_pos.header.stamp).toSec();
     odom_nav.twist.twist.linear.x =
-        -(msg->pose.position.x - last_pos.pose.position.x) / dt;
+        (msg->pose.position.x - last_pos.pose.position.x) / dt;
     odom_nav.twist.twist.linear.y =
         -(msg->pose.position.y - last_pos.pose.position.y) / dt;
     odom_nav.twist.twist.linear.z =
@@ -59,14 +61,20 @@ void OdomSubPub::odomCb(const geometry_msgs::PoseStampedConstPtr &msg) {
   last_pos = *msg;
   have_last_pose = true;
 
-  world_to_base.transform.rotation.w = odom_nav.pose.pose.orientation.w =
-      msg->pose.orientation.w;
-  world_to_base.transform.rotation.x = odom_nav.pose.pose.orientation.x =
-      msg->pose.orientation.x;
-  world_to_base.transform.rotation.y = odom_nav.pose.pose.orientation.y =
-      msg->pose.orientation.y;
-  world_to_base.transform.rotation.z = odom_nav.pose.pose.orientation.z =
-      msg->pose.orientation.z;
+  tf2::Quaternion q;
+  q.setW(msg->pose.orientation.w);
+  q.setX(msg->pose.orientation.x);
+  q.setY(msg->pose.orientation.y);
+  q.setZ(msg->pose.orientation.z);
+  tf2::Matrix3x3 r;
+  r.setRotation(q);
+  r = r.inverse();
+  r.getRotation(q);
+  
+  world_to_base.transform.rotation.w = odom_nav.pose.pose.orientation.w = q.w();
+  world_to_base.transform.rotation.x = odom_nav.pose.pose.orientation.x = q.x();
+  world_to_base.transform.rotation.y = odom_nav.pose.pose.orientation.y = q.y();
+  world_to_base.transform.rotation.z = odom_nav.pose.pose.orientation.z = q.z();
 
   world_to_base.header.stamp = odom_nav.header.stamp = ros::Time::now();
   odom_nav_pub.publish(odom_nav);
@@ -88,7 +96,9 @@ void OdomSubPub::imuCb(const sensor_msgs::ImuConstPtr &msg) {
   imu.orientation_covariance = msg->orientation_covariance;
   imu.angular_velocity = msg->angular_velocity;
   imu.angular_velocity_covariance = msg->angular_velocity_covariance;
-  imu.linear_acceleration = msg->linear_acceleration;
+  imu.linear_acceleration.x = -msg->linear_acceleration.x;
+  imu.linear_acceleration.y = msg->linear_acceleration.y;
+  imu.linear_acceleration.z = msg->linear_acceleration.z;
   imu.linear_acceleration_covariance = msg->linear_acceleration_covariance;
   imu.header.stamp = ros::Time::now();
   imu.header.frame_id = "base_link";
