@@ -1,4 +1,5 @@
 #include "flight_control.h"
+#include "LowPassFilter.hpp"
 #include "airsim_ros/Land.h"
 #include "airsim_ros/Takeoff.h"
 #include "flight_control/PidDebug.h"
@@ -53,6 +54,7 @@ void FlightControl::odomCb(const nav_msgs::OdometryConstPtr &msg) {
   static double t_last = msg->header.stamp.toSec();
   static geometry_msgs::Twist twist_last = msg->twist.twist;
   double dt = msg->header.stamp.toSec() - t_last;
+  t_last = msg->header.stamp.toSec();
   if (dt > 0.f) {
     pid_chain.acc_x.now =
         (msg->twist.twist.linear.x - twist_last.linear.x) / dt;
@@ -86,7 +88,7 @@ void FlightControl::cmdPubTimerCb(const ros::TimerEvent &e) {
   // if (pid_chain.ctrl_enable == false) {
   //   return;
   // }
-  pid_chain.acc_x.setExpect(0.5 * sin(ros::Time::now().toSec()));
+  pid_chain.vel_x.setExpect(sin(ros::Time::now().toSec()));
   pid_chain.vel_z.setExpect(0.5 * sin(ros::Time::now().toSec()) + 0.5);
   pid_chain.accelYawUpdate();
   pid_chain.pubPidDebug();
@@ -160,23 +162,23 @@ void FlightControl::dyCb(flight_pid::flight_pidConfig &cfg, uint32_t level) {
   // pid_chain.position_z.setMax(cfg.position_z_out_max, cfg.position_z_p_max,
   //                             cfg.position_z_i_max, cfg.position_z_d_max);
 
-  // pid_chain.vel_x.setPid(cfg.vel_x_p, cfg.vel_x_i, cfg.vel_x_d);
-  // pid_chain.vel_y.setPid(cfg.vel_y_p, cfg.vel_y_i, cfg.vel_y_d);
+  pid_chain.vel_x.setPid(cfg.vel_x_p, cfg.vel_x_i, cfg.vel_x_d);
+  pid_chain.vel_y.setPid(cfg.vel_y_p, cfg.vel_y_i, cfg.vel_y_d);
   pid_chain.vel_z.setPid(cfg.vel_z_p, cfg.vel_z_i, cfg.vel_z_d);
-  // pid_chain.vel_x.setMax(cfg.vel_x_out_max, cfg.vel_x_p_max, cfg.vel_x_i_max,
-  //                        cfg.vel_x_d_max);
-  // pid_chain.vel_y.setMax(cfg.vel_y_out_max, cfg.vel_y_p_max, cfg.vel_y_i_max,
-  //                        cfg.vel_y_d_max);
+  pid_chain.vel_x.setMax(cfg.vel_x_out_max, cfg.vel_x_p_max, cfg.vel_x_i_max,
+                         cfg.vel_x_d_max);
+  pid_chain.vel_y.setMax(cfg.vel_y_out_max, cfg.vel_y_p_max, cfg.vel_y_i_max,
+                         cfg.vel_y_d_max);
   pid_chain.vel_z.setMax(cfg.vel_z_out_max, cfg.vel_z_p_max, cfg.vel_z_i_max,
                          cfg.vel_z_d_max);
 
-  pid_chain.acc_x.setPid(cfg.acc_x_p, cfg.acc_x_i, cfg.acc_x_d);
-  pid_chain.acc_y.setPid(cfg.acc_y_p, cfg.acc_y_i, cfg.acc_y_d);
+  // pid_chain.acc_x.setPid(cfg.acc_x_p, cfg.acc_x_i, cfg.acc_x_d);
+  // pid_chain.acc_y.setPid(cfg.acc_y_p, cfg.acc_y_i, cfg.acc_y_d);
   pid_chain.acc_z.setPid(cfg.acc_z_p, cfg.acc_z_i, cfg.acc_z_d);
-  pid_chain.acc_x.setMax(cfg.acc_x_out_max, cfg.acc_x_p_max, cfg.acc_x_i_max,
-                         cfg.acc_x_d_max);
-  pid_chain.acc_y.setMax(cfg.acc_y_out_max, cfg.acc_y_p_max, cfg.acc_y_i_max,
-                         cfg.acc_y_d_max);
+  // pid_chain.acc_x.setMax(cfg.acc_x_out_max, cfg.acc_x_p_max, cfg.acc_x_i_max,
+  //                        cfg.acc_x_d_max);
+  // pid_chain.acc_y.setMax(cfg.acc_y_out_max, cfg.acc_y_p_max, cfg.acc_y_i_max,
+  //                        cfg.acc_y_d_max);
   pid_chain.acc_z.setMax(cfg.acc_z_out_max, cfg.acc_z_p_max, cfg.acc_z_i_max,
                          cfg.acc_z_d_max);
 
@@ -259,12 +261,26 @@ void PidChain::accelYawUpdate() {
   // if (ctrl_enable == false) {
   //   return;
   // }
+#define LPF_ANGLE_CUTOFF (5)
+  static LowPassFilter lpf_angle_pitch, lpf_angle_roll;
+  static double t_last = ros::Time::now().toSec();
+  static bool init = false;
+  if (!init) {
+    init = true;
+    return;
+  }
+  double dt = ros::Time::now().toSec() - t_last;
+
   cal_lock.lock();
 
-  angle_pitch.setExpect(acc_x.update());
+  angle_pitch.setExpect(
+      lpf_angle_pitch.update(vel_x.update(), dt, LPF_ANGLE_CUTOFF));
+  // angle_pitch.setExpect(vel_x.update());
   angle_vel_pitch.setExpect(angle_pitch.update());
 
-  // angle_roll.setExpect(acc_y.update());
+  // vel_y.setExpect(-vel_y.expect);
+  // angle_roll.setExpect(
+  //     lpf_angle_roll.update(vel_y.update(), dt, LPF_ANGLE_CUTOFF));
   // angle_vel_roll.setExpect(angle_roll.update());
 
   vel_z.update();
