@@ -2,12 +2,14 @@
 #include "airsim_ros/Land.h"
 #include "airsim_ros/Takeoff.h"
 #include "flight_control/PidDebug.h"
+#include "geometry_msgs/Twist.h"
 #include "quadrotor_msgs/FsmCommand.h"
 #include "ros/time.h"
 #include "tf/LinearMath/Matrix3x3.h"
 #include "tf/LinearMath/Quaternion.h"
 #include "tf/transform_datatypes.h"
 #include <boost/bind/bind.hpp>
+#include <cmath>
 
 int main(int argc, char **argv) {
   ros::init(argc, argv, "flight_control");
@@ -46,6 +48,15 @@ void FlightControl::odomCb(const nav_msgs::OdometryConstPtr &msg) {
   pid_chain.vel_y.now = msg->twist.twist.linear.y;
   pid_chain.vel_z.now = msg->twist.twist.linear.z;
 
+  static double t_last = msg->header.stamp.toSec();
+  static geometry_msgs::Twist twist_last = msg->twist.twist;
+  double dt = msg->header.stamp.toSec()-t_last;
+  if (dt>0.f) {
+    pid_chain.acc_x.now = (msg->twist.twist.linear.x-twist_last.linear.x)/dt;
+    pid_chain.acc_y.now = (msg->twist.twist.linear.y-twist_last.linear.y)/dt;
+    pid_chain.acc_z.now = (msg->twist.twist.linear.z-twist_last.linear.z)/dt;
+  }
+
   tf::Quaternion quat;
   tf::quaternionMsgToTF(msg->pose.pose.orientation, quat);
   double r, p, y;
@@ -54,25 +65,24 @@ void FlightControl::odomCb(const nav_msgs::OdometryConstPtr &msg) {
   pid_chain.angle_pitch.now = p / M_PI * 180;
   pid_chain.angle_yaw.now = y / M_PI * 180;
 
-  pid_chain.angle_vel_pitch.now = msg->twist.twist.angular.y / M_PI * 180;
+  pid_chain.angle_vel_pitch.now = -msg->twist.twist.angular.y / M_PI * 180;
   pid_chain.angle_vel_yaw.now = msg->twist.twist.angular.z / M_PI * 180;
   pid_chain.angle_vel_roll.now = msg->twist.twist.angular.x / M_PI * 180;
   pid_chain.cal_lock.unlock();
-
-  pid_chain.accelYawUpdate();
 }
 void FlightControl::imuCb(const sensor_msgs::ImuConstPtr &msg) {
-  pid_chain.cal_lock.lock();
-  pid_chain.acc_x.now = msg->linear_acceleration.x;
-  pid_chain.acc_y.now = msg->linear_acceleration.y;
-  pid_chain.acc_z.now = msg->linear_acceleration.z + 9.80615;
-  pid_chain.cal_lock.unlock();
-  pid_chain.accelYawUpdate();
+  // pid_chain.cal_lock.lock();
+  // pid_chain.acc_x.now = msg->linear_acceleration.x;
+  // pid_chain.acc_y.now = msg->linear_acceleration.y;
+  // pid_chain.acc_z.now = msg->linear_acceleration.z + 9.80615;
+  // pid_chain.cal_lock.unlock();
 }
 void FlightControl::cmdPubTimerCb(const ros::TimerEvent &e) {
   // if (pid_chain.ctrl_enable == false) {
   //   return;
   // }
+  pid_chain.acc_x.setExpect(0.25*sin(ros::Time::now().toSec()));
+  pid_chain.vel_z.setExpect(0.5*sin(ros::Time::now().toSec())+0.5);
   pid_chain.accelYawUpdate();
   pid_chain.pubPidDebug();
 
@@ -109,7 +119,7 @@ void FlightControl::posSubCb(
   pid_chain.angle_yaw.setExpect(msg->yaw);
   pid_chain.angle_vel_yaw.setExpect(msg->yaw_dot);
   pid_chain.cal_lock.unlock();
-  pid_chain.accelYawUpdate();
+  // pid_chain.accelYawUpdate();
 }
 void FlightControl::fsmCmdCb(const quadrotor_msgs::FsmCommandConstPtr &msg) {
   if (msg->trajectory_flag ==
@@ -189,7 +199,7 @@ void FlightControl::dyCb(flight_pid::flight_pidConfig &cfg, uint32_t level) {
   //     cfg.angle_vel_roll_out_max, cfg.angle_vel_roll_p_max,
   //     cfg.angle_vel_roll_i_max, cfg.angle_vel_roll_d_max);
   pid_chain.cal_lock.unlock();
-  pid_chain.accelYawUpdate();
+  // pid_chain.accelYawUpdate();
 }
 
 /* ---------------------------------
@@ -199,8 +209,6 @@ void FlightControl::dyCb(flight_pid::flight_pidConfig &cfg, uint32_t level) {
 PidChain::PidChain(ros::NodeHandle &nh) {
   debug_info_pub = nh.advertise<flight_control::PidDebug>("/pid_debug", 10);
   reset();
-  vel_z.setExpect(0.5);
-  acc_x.setExpect(0.1);
 }
 void PidChain::positionUpdate(double x_now, double y_now, double z_now) {
   cal_lock.lock();
