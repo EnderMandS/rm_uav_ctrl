@@ -8,6 +8,7 @@
 #include "tf/LinearMath/Matrix3x3.h"
 #include "tf/LinearMath/Quaternion.h"
 #include "tf/transform_datatypes.h"
+#include <algorithm>
 #include <boost/bind/bind.hpp>
 #include <cmath>
 
@@ -35,7 +36,7 @@ FlightControl::FlightControl(ros::NodeHandle &nh) : nh(nh), pid_chain(nh) {
   odom_sub = nh.subscribe("/odom_nav", 1, &FlightControl::odomCb, this);
   fsm_cmd_sub =
       nh.subscribe("/planning/fsm_cmd", 1, &FlightControl::fsmCmdCb, this);
-  imu_sub = nh.subscribe("/imu", 1, &FlightControl::imuCb, this);
+  // imu_sub = nh.subscribe("/imu", 1, &FlightControl::imuCb, this);
   dy_cb_f = boost::bind(&FlightControl::dyCb, this, _1, _2);
   dy_server.setCallback(dy_cb_f);
 }
@@ -48,13 +49,17 @@ void FlightControl::odomCb(const nav_msgs::OdometryConstPtr &msg) {
   pid_chain.vel_y.now = msg->twist.twist.linear.y;
   pid_chain.vel_z.now = msg->twist.twist.linear.z;
 
+  // cal acceleration from odometry
   static double t_last = msg->header.stamp.toSec();
   static geometry_msgs::Twist twist_last = msg->twist.twist;
-  double dt = msg->header.stamp.toSec()-t_last;
-  if (dt>0.f) {
-    pid_chain.acc_x.now = (msg->twist.twist.linear.x-twist_last.linear.x)/dt;
-    pid_chain.acc_y.now = (msg->twist.twist.linear.y-twist_last.linear.y)/dt;
-    pid_chain.acc_z.now = (msg->twist.twist.linear.z-twist_last.linear.z)/dt;
+  double dt = msg->header.stamp.toSec() - t_last;
+  if (dt > 0.f) {
+    pid_chain.acc_x.now =
+        (msg->twist.twist.linear.x - twist_last.linear.x) / dt;
+    pid_chain.acc_y.now =
+        (msg->twist.twist.linear.y - twist_last.linear.y) / dt;
+    pid_chain.acc_z.now =
+        (msg->twist.twist.linear.z - twist_last.linear.z) / dt;
   }
 
   tf::Quaternion quat;
@@ -81,8 +86,8 @@ void FlightControl::cmdPubTimerCb(const ros::TimerEvent &e) {
   // if (pid_chain.ctrl_enable == false) {
   //   return;
   // }
-  pid_chain.acc_x.setExpect(0.25*sin(ros::Time::now().toSec()));
-  pid_chain.vel_z.setExpect(0.5*sin(ros::Time::now().toSec())+0.5);
+  pid_chain.acc_x.setExpect(0.5 * sin(ros::Time::now().toSec()));
+  pid_chain.vel_z.setExpect(0.5 * sin(ros::Time::now().toSec()) + 0.5);
   pid_chain.accelYawUpdate();
   pid_chain.pubPidDebug();
 
@@ -90,8 +95,14 @@ void FlightControl::cmdPubTimerCb(const ros::TimerEvent &e) {
   angle_rate.pitchRate = -pid_chain.angle_vel_pitch.expect / 180 * M_PI;
   angle_rate.yawRate = pid_chain.angle_vel_yaw.expect / 180 * M_PI;
   angle_rate.rollRate = pid_chain.angle_vel_roll.expect / 180 * M_PI;
-  angle_rate.throttle = pid_chain.thrust.expect;
+  double pitch_thrust =
+      pid_chain.thrust.expect * tan(pid_chain.angle_pitch.now / 180 * M_PI);
+  double roll_thrust =
+      pid_chain.thrust.expect * tan(pid_chain.angle_roll.now / 180 * M_PI);
+  angle_rate.throttle = sqrt(pow(pitch_thrust, 2) + pow(roll_thrust, 2) +
+                             pow(pid_chain.thrust.expect, 2));
   pid_chain.cal_lock.unlock();
+  angle_rate.throttle = std::clamp(angle_rate.throttle, 0.0, 1.0);
   angle_rate_pub.publish(angle_rate);
 
   // 2 0
