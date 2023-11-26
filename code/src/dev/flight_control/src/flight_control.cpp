@@ -68,7 +68,7 @@ void FlightControl::odomCb(const nav_msgs::OdometryConstPtr &msg) {
   tf::quaternionMsgToTF(msg->pose.pose.orientation, quat);
   double r, p, y;
   tf::Matrix3x3(quat).getRPY(r, p, y);
-  pid_chain.angle_roll.now = r / M_PI * 180;
+  pid_chain.angle_roll.now = -r / M_PI * 180;
   pid_chain.angle_pitch.now = p / M_PI * 180;
   pid_chain.angle_yaw.now = y / M_PI * 180;
 
@@ -89,6 +89,7 @@ void FlightControl::cmdPubTimerCb(const ros::TimerEvent &e) {
   //   return;
   // }
   pid_chain.vel_x.setExpect(sin(ros::Time::now().toSec()));
+  pid_chain.vel_y.setExpect(sin(ros::Time::now().toSec()));
   pid_chain.vel_z.setExpect(0.5 * sin(ros::Time::now().toSec()) + 0.5);
   pid_chain.accelYawUpdate();
   pid_chain.pubPidDebug();
@@ -278,10 +279,10 @@ void PidChain::accelYawUpdate() {
   // angle_pitch.setExpect(vel_x.update());
   angle_vel_pitch.setExpect(angle_pitch.update());
 
-  // vel_y.setExpect(-vel_y.expect);
-  // angle_roll.setExpect(
-  //     lpf_angle_roll.update(vel_y.update(), dt, LPF_ANGLE_CUTOFF));
-  // angle_vel_roll.setExpect(angle_roll.update());
+  vel_y.setExpect(-vel_y.expect);
+  angle_roll.setExpect(
+      -lpf_angle_roll.update(vel_y.update(), dt, LPF_ANGLE_CUTOFF));
+  angle_vel_roll.setExpect(angle_roll.update());
 
   vel_z.update();
   // acc_z.update();
