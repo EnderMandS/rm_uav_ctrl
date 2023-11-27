@@ -229,13 +229,14 @@ namespace ego_planner
 
     // publish fsm state to topic "/planning/fsm_cmd"
     quadrotor_msgs::FsmCommand fsm_cmd;
-    if (exec_state_==EXEC_TRAJ) {
+    if (exec_state_ == GEN_NEW_TRAJ || exec_state_==EXEC_TRAJ || exec_state_==REPLAN_TRAJ) {
       fsm_cmd.trajectory_flag = quadrotor_msgs::FsmCommand::TRAJECTORY_STATUS_EXEC;
     }
     else {
       fsm_cmd.trajectory_flag = quadrotor_msgs::FsmCommand::TRAJECTORY_STATUS_EMPTY;
     }
     fsm_cmd.header = std_msgs::Header();
+    fsm_cmd.header.stamp = ros::Time::now();
     fsm_cmd_pub_.publish(fsm_cmd);
 
     switch (exec_state_)

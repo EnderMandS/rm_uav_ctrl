@@ -109,7 +109,7 @@ generate_dynamic_reconfigure_options(
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES flight_control
- CATKIN_DEPENDS message_runtime airsim_ros roscpp rospy
+ CATKIN_DEPENDS airsim_ros roscpp rospy message_runtime
 #  DEPENDS system_lib
 )
 
