@@ -12,6 +12,7 @@ public:
 private:
   ros::Subscriber circle_sub, odom_sub;
   ros::Publisher waypoint_pub, marker_pub;
+  ros::ServiceClient clean_map_client;
   ros::Timer pub_nav_timer;
 
   int circle_now_index = 0;

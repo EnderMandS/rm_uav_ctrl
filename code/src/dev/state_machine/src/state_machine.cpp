@@ -12,6 +12,7 @@
 #include <cmath>
 #include <nav_msgs/Path.h>
 #include <ostream>
+#include <std_srvs/Empty.h>
 
 int main(int argc, char **argv) {
   ros::init(argc, argv, "state_machine");
@@ -31,6 +32,7 @@ StateMachine::StateMachine(ros::NodeHandle &nh) {
   marker_pub = nh.advertise<visualization_msgs::Marker>("/circle_marker", 17);
   pub_nav_timer =
       nh.createTimer(ros::Duration(5), &StateMachine::pubNavTimerCb, this);
+  clean_map_client = nh.serviceClient<std_srvs::Empty>("/empty_map");
   ROS_INFO("State machine init success.");
 }
 void StateMachine::circlePoseCb(const airsim_ros::CirclePosesConstPtr &msg) {
@@ -72,15 +74,19 @@ void StateMachine::odomCb(const nav_msgs::OdometryConstPtr &msg) {
           (sizeof(waypoint_list) / sizeof(waypoint_list[0]) - 1)) {
     if (pubNavPath(circle_now_index + 1)) {
       ++circle_now_index;
+      std_srvs::Empty srv;
+      if (clean_map_client.call(srv)) {
+        ROS_ERROR("Clean map fail!");
+      }
     }
   }
   pose_now = *msg;
 }
 void StateMachine::pubNavTimerCb(const ros::TimerEvent &e) {
   static bool first_pub = false;
-  // if (!first_pub) {
-  //   first_pub = pubNavPath(0);
-  // }
+  if (!first_pub) {
+    first_pub = pubNavPath(0);
+  }
 }
 bool StateMachine::pubNavPath(int circle_index) {
   if (pose_now.header.seq == 0) { // no odom return

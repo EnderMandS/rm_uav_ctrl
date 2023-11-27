@@ -12,6 +12,7 @@
 #include <nav_msgs/Odometry.h>
 #include <queue>
 #include <ros/ros.h>
+#include <std_srvs/Empty.h>
 #include <tuple>
 #include <visualization_msgs/Marker.h>
 
@@ -233,6 +234,8 @@ private:
   //MY_DEBUG
   image_transport::ImageTransport it_F32, it_U16;
   image_transport::Publisher depth_F32_pub, depth_U16_pub;
+  ros::ServiceServer empty_map_service;
+  bool emptyMapServiceCb(std_srvs::Empty::Request &, std_srvs::Empty::Response &);
 
   //
   uniform_real_distribution<double> rand_noise_;

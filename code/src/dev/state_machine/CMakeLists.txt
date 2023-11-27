@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   visualization_msgs
+  std_srvs
 )
 
 # Eigen3
