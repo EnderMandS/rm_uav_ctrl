@@ -1,9 +1,9 @@
 <launch>
   <param name="use_sim_time" value="false" />
   <!-- size of map, change the size inflate x, y, z according to your application -->
-  <arg name="map_size_x" value="40.0"/>
-  <arg name="map_size_y" value="40.0"/>
-  <arg name="map_size_z" value=" 10.0"/>
+  <arg name="map_size_x" value="400.0"/>
+  <arg name="map_size_y" value="400.0"/>
+  <arg name="map_size_z" value="20.0"/>
 
   <!-- topic of your odometry such as VIO or LIO -->
   <arg name="odom_topic" value="/odom_nav"/>
@@ -34,7 +34,7 @@
     <arg name="fy" value="320.0"/>
 
     <!-- maximum velocity and acceleration the drone will reach -->
-    <arg name="max_vel" value="1.0" />
+    <arg name="max_vel" value="3.0" />
     <arg name="max_acc" value="1.0" />
 
     <!--always set to 1.5 times grater than sensing horizen-->
@@ -90,7 +90,8 @@
   <node pkg="camera_convert" name="camera_convert" type="camera_convert" output="screen"/>
   <node pkg="odom_pub" name="odom_pub" type="odom_pub" output="screen"/>
   <node pkg="flight_control" name="flight_control" type="flight_control" output="screen"/>
-  <node pkg="rqt_reconfigure" name="rqt_reconfigure" type="rqt_reconfigure" output="screen"/>
+  <node pkg="state_machine" name="state_machine" type="state_machine" output="screen"/>
+  <!-- <node pkg="rqt_reconfigure" name="rqt_reconfigure" type="rqt_reconfigure" output="screen"/> -->
   
   <!-- use simulator -->
   <!-- <include file="$(find ego_planner)/launch/simulator.xml">

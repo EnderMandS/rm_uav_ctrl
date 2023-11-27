@@ -3,11 +3,14 @@
 #include <opencv2/core.hpp>
 #include <ros/message_traits.h>
 #include <sensor_msgs/image_encodings.h>
+#include <std_srvs/Empty.h>
 
 // #define current_img_ md_.depth_image_[image_cnt_ & 1]
 // #define last_img_ md_.depth_image_[!(image_cnt_ & 1)]
 
-GridMap::GridMap(ros::NodeHandle &nh): node_(nh), it_F32(nh), it_U16(nh) {}
+GridMap::GridMap(ros::NodeHandle &nh): node_(nh), it_F32(nh), it_U16(nh) {
+  empty_map_service = nh.advertiseService("/empty_map", &GridMap::emptyMapServiceCb, this);
+}
 
 void GridMap::initMap()
 {
@@ -851,6 +854,13 @@ void GridMap::cloudCallback(const sensor_msgs::PointCloud2ConstPtr &img)
 
   boundIndex(md_.local_bound_min_);
   boundIndex(md_.local_bound_max_);
+}
+
+bool GridMap::emptyMapServiceCb(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
+  ROS_INFO("Clean Map.");
+  // resetBuffer();
+  // clearAndInflateLocalMap();
+  return true;
 }
 
 void GridMap::publishMap()

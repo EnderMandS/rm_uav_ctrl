@@ -1,14 +1,15 @@
 #include "flight_control.h"
+#include "LowPassFilter.hpp"
 #include "airsim_ros/Land.h"
 #include "airsim_ros/Takeoff.h"
 #include "flight_control/PidDebug.h"
+#include "geometry_msgs/Twist.h"
 #include "quadrotor_msgs/FsmCommand.h"
-#include "ros/message_traits.h"
 #include "ros/time.h"
 #include "tf/LinearMath/Matrix3x3.h"
 #include "tf/LinearMath/Quaternion.h"
 #include "tf/transform_datatypes.h"
-#include "tf2/LinearMath/Quaternion.h"
+#include <algorithm>
 #include <boost/bind/bind.hpp>
 #include <cmath>
 
@@ -27,15 +28,17 @@ FlightControl::FlightControl(ros::NodeHandle &nh) : nh(nh), pid_chain(nh) {
       nh.serviceClient<airsim_ros::Takeoff>("/airsim_node/drone_1/takeoff");
   land_client = nh.serviceClient<airsim_ros::Land>("/airsim_node/drone_1/land");
   pwm_pub = nh.advertise<airsim_ros::RotorPWM>(
-      "/airsim_node/drone_1/rotor_pwm_cmd", 10);
-  cmd_pub_timer = nh.createTimer(ros::Duration(1.f / 200),
-                                 &FlightControl::cmdPubTimerCb, this);
+      "/airsim_node/drone_1/rotor_pwm_cmd", 1);
+  cmd_pub_timer =
+      nh.createTimer(ros::Duration(0.005), &FlightControl::cmdPubTimerCb, this);
   angle_rate_pub = nh.advertise<airsim_ros::AngleRateThrottle>(
-      "/airsim_node/drone_1/angle_rate_throttle_frame", 10);
-  pos_sub = nh.subscribe("/position_cmd", 10, &FlightControl::posSubCb, this);
-  odom_sub = nh.subscribe("/odom_nav", 10, &FlightControl::odomCb, this);
+      "/airsim_node/drone_1/angle_rate_throttle_frame", 1);
+  pos_sub =
+      nh.subscribe("/planning/pos_cmd", 1, &FlightControl::posSubCb, this);
+  odom_sub = nh.subscribe("/odom_nav", 1, &FlightControl::odomCb, this);
   fsm_cmd_sub =
-      nh.subscribe("/planning/fsm_cmd", 5, &FlightControl::fsmCmdCb, this);
+      nh.subscribe("/planning/fsm_cmd", 1, &FlightControl::fsmCmdCb, this);
+  // imu_sub = nh.subscribe("/imu", 1, &FlightControl::imuCb, this);
   dy_cb_f = boost::bind(&FlightControl::dyCb, this, _1, _2);
   dy_server.setCallback(dy_cb_f);
 }
@@ -48,42 +51,67 @@ void FlightControl::odomCb(const nav_msgs::OdometryConstPtr &msg) {
   pid_chain.vel_y.now = msg->twist.twist.linear.y;
   pid_chain.vel_z.now = msg->twist.twist.linear.z;
 
+  // cal acceleration from odometry
+  static double t_last = msg->header.stamp.toSec();
+  static geometry_msgs::Twist twist_last = msg->twist.twist;
+  double dt = msg->header.stamp.toSec() - t_last;
+  t_last = msg->header.stamp.toSec();
+  if (dt > 0.f) {
+    pid_chain.acc_x.now =
+        (msg->twist.twist.linear.x - twist_last.linear.x) / dt;
+    pid_chain.acc_y.now =
+        (msg->twist.twist.linear.y - twist_last.linear.y) / dt;
+    pid_chain.acc_z.now =
+        (msg->twist.twist.linear.z - twist_last.linear.z) / dt;
+  }
+
   tf::Quaternion quat;
   tf::quaternionMsgToTF(msg->pose.pose.orientation, quat);
   double r, p, y;
   tf::Matrix3x3(quat).getRPY(r, p, y);
-  pid_chain.angle_roll.now = r / M_PI * 180;
+  pid_chain.angle_roll.now = -r / M_PI * 180;
   pid_chain.angle_pitch.now = p / M_PI * 180;
   pid_chain.angle_yaw.now = y / M_PI * 180;
 
-  pid_chain.angle_vel_pitch.now = msg->twist.twist.angular.y / M_PI * 180;
+  pid_chain.angle_vel_pitch.now = -msg->twist.twist.angular.y / M_PI * 180;
   pid_chain.angle_vel_yaw.now = msg->twist.twist.angular.z / M_PI * 180;
   pid_chain.angle_vel_roll.now = msg->twist.twist.angular.x / M_PI * 180;
   pid_chain.cal_lock.unlock();
-
-  pid_chain.accelYawUpdate();
 }
 void FlightControl::imuCb(const sensor_msgs::ImuConstPtr &msg) {
-  pid_chain.cal_lock.lock();
-  pid_chain.acc_x.now = msg->linear_acceleration.x;
-  pid_chain.acc_y.now = msg->linear_acceleration.y;
-  pid_chain.acc_z.now = msg->linear_acceleration.z + 9.80615;
-  pid_chain.cal_lock.unlock();
-  pid_chain.accelYawUpdate();
+  // pid_chain.cal_lock.lock();
+  // pid_chain.acc_x.now = msg->linear_acceleration.x;
+  // pid_chain.acc_y.now = msg->linear_acceleration.y;
+  // pid_chain.acc_z.now = msg->linear_acceleration.z + 9.80615;
+  // pid_chain.cal_lock.unlock();
 }
 void FlightControl::cmdPubTimerCb(const ros::TimerEvent &e) {
-  // if (pid_chain.ctrl_enable == false) {
-  //   return;
-  // }
+  if (pid_chain.ctrl_enable == false) {
+    if (pid_chain.position_z.now < 1.0) {
+      pid_chain.velocityYawSet(0, 0, 0.5, pid_chain.angle_yaw.now);
+    } else {
+      pid_chain.velocityYawSet(0.2, 0, 0.1, pid_chain.angle_yaw.now);
+    }
+  }
+  // pid_chain.vel_x.setExpect(sin(ros::Time::now().toSec()));
+  // pid_chain.vel_y.setExpect(sin(ros::Time::now().toSec()));
+  // pid_chain.vel_z.setExpect(0.5 * sin(ros::Time::now().toSec()) + 0.5);
+
   pid_chain.accelYawUpdate();
   pid_chain.pubPidDebug();
 
   pid_chain.cal_lock.lock();
-  angle_rate.pitchRate = pid_chain.angle_vel_pitch.expect / 180 * M_PI;
+  angle_rate.pitchRate = -pid_chain.angle_vel_pitch.expect / 180 * M_PI;
   angle_rate.yawRate = pid_chain.angle_vel_yaw.expect / 180 * M_PI;
   angle_rate.rollRate = pid_chain.angle_vel_roll.expect / 180 * M_PI;
-  angle_rate.throttle = pid_chain.thrust.expect;
+  double pitch_thrust =
+      pid_chain.thrust.expect * tan(pid_chain.angle_pitch.now / 180 * M_PI);
+  double roll_thrust =
+      pid_chain.thrust.expect * tan(pid_chain.angle_roll.now / 180 * M_PI);
+  angle_rate.throttle = sqrt(pow(pitch_thrust, 2) + pow(roll_thrust, 2) +
+                             pow(pid_chain.thrust.expect, 2));
   pid_chain.cal_lock.unlock();
+  angle_rate.throttle = std::clamp(angle_rate.throttle, 0.0, 1.0);
   angle_rate_pub.publish(angle_rate);
 
   // 2 0
@@ -103,15 +131,16 @@ void FlightControl::cmdPubTimerCb(const ros::TimerEvent &e) {
 }
 void FlightControl::posSubCb(
     const quadrotor_msgs::PositionCommandConstPtr &msg) {
-  pid_chain.positionSet(msg->position.x, msg->position.y, msg->position.z);
+
+  // pid_chain.positionSet(msg->position.x, msg->position.y, msg->position.z);
   pid_chain.velocitySet(msg->velocity.x, msg->velocity.y, msg->velocity.z);
-  pid_chain.accelSet(msg->acceleration.x, msg->acceleration.y,
-                     msg->acceleration.z);
+  // pid_chain.accelSet(msg->acceleration.x, msg->acceleration.y,
+  //                    msg->acceleration.z);
   pid_chain.cal_lock.lock();
-  pid_chain.angle_yaw.setExpect(msg->yaw);
-  pid_chain.angle_vel_yaw.setExpect(msg->yaw_dot);
+  pid_chain.angle_yaw.setExpect(msg->yaw / M_PI * 180);
+  // pid_chain.angle_vel_yaw.setExpect(msg->yaw_dot);
   pid_chain.cal_lock.unlock();
-  pid_chain.accelYawUpdate();
+  // pid_chain.accelYawUpdate();
 }
 void FlightControl::fsmCmdCb(const quadrotor_msgs::FsmCommandConstPtr &msg) {
   if (msg->trajectory_flag ==
@@ -141,36 +170,35 @@ void FlightControl::dyCb(flight_pid::flight_pidConfig &cfg, uint32_t level) {
   // pid_chain.position_z.setMax(cfg.position_z_out_max, cfg.position_z_p_max,
   //                             cfg.position_z_i_max, cfg.position_z_d_max);
 
-  // pid_chain.vel_x.setPid(cfg.vel_x_p, cfg.vel_x_i, cfg.vel_x_d);
-  // pid_chain.vel_y.setPid(cfg.vel_y_p, cfg.vel_y_i, cfg.vel_y_d);
+  pid_chain.vel_x.setPid(cfg.vel_x_p, cfg.vel_x_i, cfg.vel_x_d);
+  pid_chain.vel_y.setPid(cfg.vel_y_p, cfg.vel_y_i, cfg.vel_y_d);
   pid_chain.vel_z.setPid(cfg.vel_z_p, cfg.vel_z_i, cfg.vel_z_d);
-  // pid_chain.vel_x.setMax(cfg.vel_x_out_max, cfg.vel_x_p_max, cfg.vel_x_i_max,
-  //                        cfg.vel_x_d_max);
-  // pid_chain.vel_y.setMax(cfg.vel_y_out_max, cfg.vel_y_p_max, cfg.vel_y_i_max,
-  //                        cfg.vel_y_d_max);
+  pid_chain.vel_x.setMax(cfg.vel_x_out_max, cfg.vel_x_p_max, cfg.vel_x_i_max,
+                         cfg.vel_x_d_max);
+  pid_chain.vel_y.setMax(cfg.vel_y_out_max, cfg.vel_y_p_max, cfg.vel_y_i_max,
+                         cfg.vel_y_d_max);
   pid_chain.vel_z.setMax(cfg.vel_z_out_max, cfg.vel_z_p_max, cfg.vel_z_i_max,
                          cfg.vel_z_d_max);
 
-  pid_chain.acc_x.setPid(cfg.acc_x_p, cfg.acc_x_i, cfg.acc_x_d);
-  pid_chain.acc_y.setPid(cfg.acc_y_p, cfg.acc_y_i, cfg.acc_y_d);
+  // pid_chain.acc_x.setPid(cfg.acc_x_p, cfg.acc_x_i, cfg.acc_x_d);
+  // pid_chain.acc_y.setPid(cfg.acc_y_p, cfg.acc_y_i, cfg.acc_y_d);
   pid_chain.acc_z.setPid(cfg.acc_z_p, cfg.acc_z_i, cfg.acc_z_d);
-  pid_chain.acc_x.setMax(cfg.acc_x_out_max, cfg.acc_x_p_max, cfg.acc_x_i_max,
-                         cfg.acc_x_d_max);
-  pid_chain.acc_y.setMax(cfg.acc_y_out_max, cfg.acc_y_p_max, cfg.acc_y_i_max,
-                         cfg.acc_y_d_max);
+  // pid_chain.acc_x.setMax(cfg.acc_x_out_max, cfg.acc_x_p_max, cfg.acc_x_i_max,
+  //                        cfg.acc_x_d_max);
+  // pid_chain.acc_y.setMax(cfg.acc_y_out_max, cfg.acc_y_p_max, cfg.acc_y_i_max,
+  //                        cfg.acc_y_d_max);
   pid_chain.acc_z.setMax(cfg.acc_z_out_max, cfg.acc_z_p_max, cfg.acc_z_i_max,
                          cfg.acc_z_d_max);
 
   pid_chain.angle_pitch.setPid(cfg.angle_pitch_p, cfg.angle_pitch_i,
                                cfg.angle_pitch_d);
-  // pid_chain.angle_yaw.setPid(cfg.angle_yaw_p, cfg.angle_yaw_i,
-  // cfg.angle_yaw_d);
+  pid_chain.angle_yaw.setPid(cfg.angle_yaw_p, cfg.angle_yaw_i, cfg.angle_yaw_d);
   pid_chain.angle_roll.setPid(cfg.angle_roll_p, cfg.angle_roll_i,
                               cfg.angle_roll_d);
   pid_chain.angle_pitch.setMax(cfg.angle_pitch_out_max, cfg.angle_pitch_p_max,
                                cfg.angle_pitch_i_max, cfg.angle_pitch_d_max);
-  // pid_chain.angle_yaw.setMax(cfg.angle_yaw_out_max, cfg.angle_yaw_p_max,
-  //                            cfg.angle_yaw_i_max, cfg.angle_yaw_d_max);
+  pid_chain.angle_yaw.setMax(cfg.angle_yaw_out_max, cfg.angle_yaw_p_max,
+                             cfg.angle_yaw_i_max, cfg.angle_yaw_d_max);
   pid_chain.angle_roll.setMax(cfg.angle_roll_out_max, cfg.angle_roll_p_max,
                               cfg.angle_roll_i_max, cfg.angle_roll_d_max);
 
@@ -191,7 +219,7 @@ void FlightControl::dyCb(flight_pid::flight_pidConfig &cfg, uint32_t level) {
   //     cfg.angle_vel_roll_out_max, cfg.angle_vel_roll_p_max,
   //     cfg.angle_vel_roll_i_max, cfg.angle_vel_roll_d_max);
   pid_chain.cal_lock.unlock();
-  pid_chain.accelYawUpdate();
+  // pid_chain.accelYawUpdate();
 }
 
 /* ---------------------------------
@@ -199,9 +227,8 @@ void FlightControl::dyCb(flight_pid::flight_pidConfig &cfg, uint32_t level) {
  * ---------------------------------
  */
 PidChain::PidChain(ros::NodeHandle &nh) {
-  debug_info_pub = nh.advertise<flight_control::PidDebug>("/pid_debug", 10);
+  debug_info_pub = nh.advertise<flight_control::PidDebug>("/pid_debug", 1);
   reset();
-  vel_z.setExpect(1);
 }
 void PidChain::positionUpdate(double x_now, double y_now, double z_now) {
   cal_lock.lock();
@@ -238,22 +265,32 @@ void PidChain::velocityYawUpdate() {
 void PidChain::accelYawUpdate() {
   // expects were set in function FlightControl::posSubCb()
   // measures were set in function FlightControl::odomCb()
-  // if (ctrl_enable == false) {
-  //   return;
-  // }
+#define LPF_ANGLE_CUTOFF (5)
+  static LowPassFilter lpf_angle_pitch, lpf_angle_roll;
+  static double t_last = ros::Time::now().toSec();
+  static bool init = false;
+  if (!init) {
+    init = true;
+    return;
+  }
+  double dt = ros::Time::now().toSec() - t_last;
+
   cal_lock.lock();
 
-  // angle_pitch.setExpect(acc_x.update());
-  // angle_vel_pitch.setExpect(angle_pitch.update());
+  angle_pitch.setExpect(
+      lpf_angle_pitch.update(vel_x.update(), dt, LPF_ANGLE_CUTOFF));
+  // angle_pitch.setExpect(vel_x.update());
+  angle_vel_pitch.setExpect(angle_pitch.update());
 
-  // angle_roll.setExpect(acc_y.update());
-  // angle_vel_roll.setExpect(angle_roll.update());
+  // vel_y.setExpect(-vel_y.expect);
+  angle_roll.setExpect(
+      -lpf_angle_roll.update(vel_y.update(), dt, LPF_ANGLE_CUTOFF));
+  angle_vel_roll.setExpect(angle_roll.update());
 
-  acc_z.setExpect(vel_z.update());
-  thrust.setExpect(acc_z.update());
-  if (thrust.expect<0) {
-    thrust.setExpect(0);
-  }
+  angle_vel_yaw.setExpect(-angle_yaw.update());
+
+  vel_z.update();
+  thrust.setExpect((vel_z.out + vel_z.out_max) / (2 * vel_z.out_max));
 
   cal_lock.unlock();
 }

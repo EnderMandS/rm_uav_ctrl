@@ -52,7 +52,7 @@ private:
   ros::NodeHandle &nh;
   ros::ServiceClient takeoff_client, land_client;
   ros::Publisher pwm_pub, angle_rate_pub;
-  ros::Subscriber pos_sub, odom_sub, fsm_cmd_sub;
+  ros::Subscriber pos_sub, odom_sub, fsm_cmd_sub, imu_sub;
   ros::Timer cmd_pub_timer;
   nav_msgs::Odometry odom;
 

@@ -51,7 +51,7 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * uncomment the generate_messages entry below
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
-## Generate messages in the 'msg' folder
+# Generate messages in the 'msg' folder
 add_message_files(
   FILES
   PidDebug.msg
@@ -71,7 +71,7 @@ add_message_files(
 #   Action2.action
 # )
 
-## Generate added messages and services with any dependencies listed here
+# Generate added messages and services with any dependencies listed here
 generate_messages(
   DEPENDENCIES
   std_msgs  # Or other packages containing msgs
@@ -109,7 +109,7 @@ generate_dynamic_reconfigure_options(
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES flight_control
-#  CATKIN_DEPENDS airsim_ros roscpp rospy
+ CATKIN_DEPENDS airsim_ros roscpp rospy message_runtime
 #  DEPENDS system_lib
 )
 
@@ -137,7 +137,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(${PROJECT_NAME} src/flight_control.cpp src/pid.cpp)
+add_executable(${PROJECT_NAME} src/flight_control.cpp src/pid.cpp src/LowPassFilter.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the

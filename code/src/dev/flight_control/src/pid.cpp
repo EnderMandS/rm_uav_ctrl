@@ -1,7 +1,6 @@
 #include "pid.h"
-#include "ros/time.h"
+#include "ros/ros.h"
 #include <algorithm>
-#include <iostream>
 
 namespace PID {
 Pid::Pid(void) {}
@@ -45,21 +44,26 @@ double Pid::update(double now) {
 }
 
 double Pid::update() {
-  static double t_last = getTime();
   double t_now = getTime();
-  double dt = t_now - t_last;
-  t_last = t_now;
-  if (dt <= 0) {
-    return 0;
+  double error = expect - now;
+
+  if (!init) {
+    init = true;
+    t_last = t_now;
+    last_error = error;
+    return out;
   }
 
-  double error = expect - now;
-  static double last_error = error; // use in first time init
-  this->last_error = last_error;
+  double dt = t_now - t_last;
+  t_last = t_now;
+  if (dt <= 0.f) {
+    return out;
+  }
+
   p_out = p * error;
   i_out += i * error * dt;
-  d_out = d * (error - this->last_error) / dt;
-  this->last_error = error;
+  d_out = d * (error - last_error) / dt;
+  last_error = error;
 
   p_out = std::clamp(p_out, -p_max, p_max);
   i_out = std::clamp(i_out, -i_max, i_max);

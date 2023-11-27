@@ -11,7 +11,7 @@ namespace ego_planner
     exec_state_ = FSM_EXEC_STATE::INIT;
     have_target_ = false;
     have_odom_ = false;
-
+  
     /*  fsm param  */
     nh.param("fsm/flight_type", target_type_, -1);
     nh.param("fsm/thresh_replan", replan_thresh_, -1.0);
@@ -114,11 +114,11 @@ namespace ego_planner
 
   void EGOReplanFSM::waypointCallback(const nav_msgs::PathConstPtr &msg)
   {
+    ROS_INFO("FSM Got new waypoint.");
     replan_lock_.lock();
     if (msg->poses[0].pose.position.z < -0.1)
       return;
 
-    cout << "Triggered!" << endl;
     trigger_ = true;
     init_pt_ = odom_pos_;
 
@@ -229,13 +229,14 @@ namespace ego_planner
 
     // publish fsm state to topic "/planning/fsm_cmd"
     quadrotor_msgs::FsmCommand fsm_cmd;
-    if (exec_state_==EXEC_TRAJ) {
+    if (exec_state_==EXEC_TRAJ || exec_state_==REPLAN_TRAJ) {
       fsm_cmd.trajectory_flag = quadrotor_msgs::FsmCommand::TRAJECTORY_STATUS_EXEC;
     }
     else {
       fsm_cmd.trajectory_flag = quadrotor_msgs::FsmCommand::TRAJECTORY_STATUS_EMPTY;
     }
     fsm_cmd.header = std_msgs::Header();
+    fsm_cmd.header.stamp = ros::Time::now();
     fsm_cmd_pub_.publish(fsm_cmd);
 
     switch (exec_state_)
@@ -321,7 +322,8 @@ namespace ego_planner
       Eigen::Vector3d pos = info->position_traj_.evaluateDeBoorT(t_cur);
 
       /* && (end_pt_ - pos).norm() < 0.5 */
-      if (t_cur > info->duration_ - 1e-2)
+      // if (t_cur > info->duration_ - 1e-2)
+      if ((end_pt_ - odom_pos_).norm()<0.7)
       {
         have_target_ = false;
 
@@ -416,34 +418,32 @@ namespace ego_planner
       if (t_cur < t_2_3 && t >= t_2_3) // If t_cur < t_2_3, only the first 2/3 partition of the trajectory is considered valid and will get checked.
         break;
 
-      if (map->getInflateOccupancy(info->position_traj_.evaluateDeBoorT(t)))  // TODO
+      if (!map->getInflateOccupancy(info->position_traj_.evaluateDeBoorT(t)))  // TODO
       {
-        if (planFromCurrentTraj()) // Make a chance
+        // if (planFromCurrentTraj()) // Make a chance
+        // {
+        //   changeFSMExecState(EXEC_TRAJ, "SAFETY");
+        //   return;
+        // }
+      }
+      else {
+        if (t - t_cur < emergency_time_) // 0.8s of emergency time
         {
-          changeFSMExecState(EXEC_TRAJ, "SAFETY");
-          return;
+          ROS_WARN("Suddenly discovered obstacles. emergency stop! time=%f", t - t_cur);
+          changeFSMExecState(EMERGENCY_STOP, "SAFETY");
         }
         else
         {
-          if (t - t_cur < emergency_time_) // 0.8s of emergency time
-          {
-            ROS_WARN("Suddenly discovered obstacles. emergency stop! time=%f", t - t_cur);
-            changeFSMExecState(EMERGENCY_STOP, "SAFETY");
-          }
-          else
-          {
-            //ROS_WARN("current traj in collision, replan.");
-            changeFSMExecState(REPLAN_TRAJ, "SAFETY");
-          }
-          return;
+          //ROS_WARN("current traj in collision, replan.");
+          changeFSMExecState(REPLAN_TRAJ, "SAFETY");
         }
-        break;
+        return;
       }
     }
   }
 
   void EGOReplanFSM::poseCheckCallabck(const ros::TimerEvent &e) {
-    if (exec_state_!=EXEC_TRAJ) {
+    if (exec_state_==INIT || exec_state_==WAIT_TARGET || exec_state_==GEN_NEW_TRAJ || exec_state_==EMERGENCY_STOP) {
       return;
     }
 
@@ -459,7 +459,7 @@ namespace ego_planner
     vel = info->velocity_traj_.evaluateDeBoorT(t_cur);
     acc = info->acceleration_traj_.evaluateDeBoorT(t_cur);
 
-    if ((odom_pos_-pos).norm()>0.3 || 
+    if ((odom_pos_-pos).norm()>0.05 || 
         (odom_vel_-vel).norm()>0.25 || 
         (odom_acc_-acc).norm()>0.25) {
       ROS_WARN("Global replanning, because odom have a great difference from planning expect.");
