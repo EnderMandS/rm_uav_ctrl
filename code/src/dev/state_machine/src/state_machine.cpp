@@ -31,7 +31,9 @@ StateMachine::StateMachine(ros::NodeHandle &nh) {
   pose_now.header.seq = 0;
   marker_pub = nh.advertise<visualization_msgs::Marker>("/circle_marker", 17);
   pub_nav_timer =
-      nh.createTimer(ros::Duration(5), &StateMachine::pubNavTimerCb, this);
+      nh.createTimer(ros::Duration(1), &StateMachine::pubNavTimerCb, this);
+  pub_clean_map_timer =
+      nh.createTimer(ros::Duration(5), &StateMachine::cleanMapTimerCb, this);
   clean_map_client = nh.serviceClient<std_srvs::Empty>("/empty_map");
   ROS_INFO("State machine init success.");
 }
@@ -60,7 +62,7 @@ void StateMachine::odomCb(const nav_msgs::OdometryConstPtr &msg) {
     return;
   }
 
-#define DEAD_ABS 0.2
+#define DEAD_ABS 0.6
   if (abs(msg->pose.pose.position.x -
           circle_poses.poses[waypoint_list[circle_now_index]].position.x) <=
           DEAD_ABS &&
@@ -72,21 +74,26 @@ void StateMachine::odomCb(const nav_msgs::OdometryConstPtr &msg) {
           DEAD_ABS &&
       circle_now_index <
           (sizeof(waypoint_list) / sizeof(waypoint_list[0]) - 1)) {
-    if (pubNavPath(circle_now_index + 1)) {
-      ++circle_now_index;
-      std_srvs::Empty srv;
-      if (clean_map_client.call(srv)) {
-        ROS_ERROR("Clean map fail!");
-      }
-    }
+    ++circle_now_index;
+    // std_srvs::Empty srv;
+    // if (clean_map_client.call(srv)) {
+    //   ROS_ERROR("Clean map fail!");
+    // }
   }
   pose_now = *msg;
 }
 void StateMachine::pubNavTimerCb(const ros::TimerEvent &e) {
-  static bool first_pub = false;
-  if (!first_pub) {
-    first_pub = pubNavPath(0);
-  }
+  // static bool first_pub = false;
+  // if (!first_pub) {
+  //   first_pub = pubNavPath(0);
+  // }
+  pubNavPath(circle_now_index);
+}
+void StateMachine::cleanMapTimerCb(const ros::TimerEvent &e) {
+  // std_srvs::Empty srv;
+  // if (clean_map_client.call(srv)) {
+  //   ROS_ERROR("Clean map fail!");
+  // }
 }
 bool StateMachine::pubNavPath(int circle_index) {
   if (pose_now.header.seq == 0) { // no odom return

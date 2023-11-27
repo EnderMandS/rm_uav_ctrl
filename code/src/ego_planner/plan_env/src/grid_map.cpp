@@ -857,7 +857,9 @@ void GridMap::cloudCallback(const sensor_msgs::PointCloud2ConstPtr &img)
 }
 
 bool GridMap::emptyMapServiceCb(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res) {
-  resetBuffer();
+  ROS_INFO("Clean Map.");
+  // resetBuffer();
+  // clearAndInflateLocalMap();
   return true;
 }
 

@@ -179,6 +179,7 @@ public:
   inline double getResolution();
   Eigen::Vector3d getOrigin();
   int getVoxelNum();
+  void clearAndInflateLocalMap();
 
   typedef std::shared_ptr<GridMap> Ptr;
 
@@ -202,7 +203,6 @@ private:
   // main update process
   void projectDepthImage();
   void raycastProcess();
-  void clearAndInflateLocalMap();
 
   inline void inflatePoint(const Eigen::Vector3i& pt, int step, vector<Eigen::Vector3i>& pts);
   int setCacheOccupancy(Eigen::Vector3d pos, int occ);
