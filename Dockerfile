@@ -15,7 +15,7 @@ RUN . /opt/ros/${ROS_DISTRO}/setup.sh && catkin_make --only-pkg-with-deps airsim
     catkin_make -DCATKIN_WHITELIST_PACKAGES="" -DCMAKE_EXPORT_COMPILE_COMMANDS=1
 
 WORKDIR /home/$USERNAME/UAV
+RUN chmod 777 setup.zsh
 
 USER $USERNAME
-# ENTRYPOINT [ "/bin/zsh" ]
 ENTRYPOINT [ "/home/m/UAV/setup.zsh" ]
