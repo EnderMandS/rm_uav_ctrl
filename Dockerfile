@@ -6,7 +6,7 @@ ARG USERNAME=m
 
 # clone code
 WORKDIR /home/$USERNAME
-RUN git clone --depth 1 https://github.com/EnderMandS/rm_uav_ctrl.git UAV
+RUN git clone --depth 1 -b commit https://github.com/EnderMandS/rm_uav_ctrl.git UAV
 
 # compile
 WORKDIR /home/$USERNAME/UAV/code/
