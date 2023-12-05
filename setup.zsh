@@ -1,4 +1,4 @@
 #!/bin/zsh
-cd /home/m/UAV/code/basic_dev/
+cd /home/m/UAV/code
 source devel/setup.zsh
-rosrun basic_dev basic_dev
+roslaunch state_machine rm_run.launch

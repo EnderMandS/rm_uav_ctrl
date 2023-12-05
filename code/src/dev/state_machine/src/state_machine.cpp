@@ -1,11 +1,6 @@
 #include "state_machine.h"
 #include "airsim_ros/Circle.h"
-#include "airsim_ros/CirclePoses.h"
-#include "geometry_msgs/PoseStamped.h"
 #include "geometry_msgs/Vector3.h"
-#include "ros/duration.h"
-#include "ros/time.h"
-#include "tf2/LinearMath/Matrix3x3.h"
 #include "tf2/LinearMath/Quaternion.h"
 #include "visualization_msgs/Marker.h"
 #include <Eigen/Core>
@@ -14,10 +9,13 @@
 #include <ostream>
 #include <std_srvs/Empty.h>
 
+#define VISUAL
+
 int main(int argc, char **argv) {
   ros::init(argc, argv, "state_machine");
   ros::NodeHandle nh;
   StateMachine state_machine(nh);
+  // ros::Duration(2.0).sleep();
   ros::spin();
   return 0;
 }
@@ -27,120 +25,86 @@ StateMachine::StateMachine(ros::NodeHandle &nh) {
                             &StateMachine::circlePoseCb, this);
   odom_sub = nh.subscribe("/odom_nav", 1, &StateMachine::odomCb, this);
   waypoint_pub =
-      nh.advertise<nav_msgs::Path>("/waypoint_generator/waypoints", 1);
+      nh.advertise<quadrotor_msgs::PositionCommand>("/planning/pos_cmd", 5);
   pose_now.header.seq = 0;
-  marker_pub = nh.advertise<visualization_msgs::Marker>("/circle_marker", 17);
-  pub_nav_timer =
-      nh.createTimer(ros::Duration(1), &StateMachine::pubNavTimerCb, this);
-  pub_clean_map_timer =
-      nh.createTimer(ros::Duration(5), &StateMachine::cleanMapTimerCb, this);
-  clean_map_client = nh.serviceClient<std_srvs::Empty>("/empty_map");
+  marker_pub = nh.advertise<visualization_msgs::Marker>("/circle_marker", 100);
+  pub_waypoint_timer =
+      nh.createTimer(ros::Duration(2), &StateMachine::pubWayPointTimerCb, this);
   ROS_INFO("State machine init success.");
 }
 void StateMachine::circlePoseCb(const airsim_ros::CirclePosesConstPtr &msg) {
   circle_poses.poses = msg->poses;
-  for (int i=0; i<circle_poses.poses.size(); ++i) {
+  for (int i = 0; i < circle_poses.poses.size(); ++i) {
     circle_poses.poses[i].position.y = -circle_poses.poses[i].position.y;
     circle_poses.poses[i].position.z = -circle_poses.poses[i].position.z;
   }
-  static bool cal_done = false, visual_done = false;
-  if (!cal_done) {
-    if (calFastestWaypoint()) {
-      ROS_INFO("Calculate fastest waypoint success.");
-      cal_done = true;
+  if (!init_cal) {
+    if (calFastestWaypoint() && calTopHeight() && calAllWaypoint()) {
+      ROS_INFO("Calculate fastest waypoint, height and all waypoints success.");
+      init_cal = true;
+      trajectory_flag = quadrotor_msgs::PositionCommand::TRAJECTORY_STATUS_EXEC;
     }
   }
-  if (cal_done && !visual_done) {
+#ifdef VISUAL
+  static bool visual_done = false;
+  if (init_cal && !visual_done) {
     if (pubVisualizeCirclePose()) {
       ROS_INFO("Publish visualizetion of circle poses success.");
       visual_done = true;
     }
   }
+#endif
 }
 void StateMachine::odomCb(const nav_msgs::OdometryConstPtr &msg) {
-  if (circle_poses.poses.empty()) {
+  if (circle_poses.poses.empty() || init_cal==false) {
     return;
   }
 
-#define DEAD_ABS 0.6
-  if (abs(msg->pose.pose.position.x -
-          circle_poses.poses[waypoint_list[circle_now_index]].position.x) <=
-          DEAD_ABS &&
-      abs(msg->pose.pose.position.y -
-          circle_poses.poses[waypoint_list[circle_now_index]].position.y) <=
-          DEAD_ABS &&
-      abs(msg->pose.pose.position.z -
-          circle_poses.poses[waypoint_list[circle_now_index]].position.z) <=
-          DEAD_ABS &&
-      circle_now_index <
-          (sizeof(waypoint_list) / sizeof(waypoint_list[0]) - 1)) {
-    ++circle_now_index;
-    // std_srvs::Empty srv;
-    // if (clean_map_client.call(srv)) {
-    //   ROS_ERROR("Clean map fail!");
-    // }
+  double distance = std::sqrt(
+      pow(v_pose[waypoint_now].position_x - msg->pose.pose.position.x, 2) +
+      pow(v_pose[waypoint_now].position_y - msg->pose.pose.position.y, 2) +
+      pow(v_pose[waypoint_now].position_z - msg->pose.pose.position.z, 2));
+  if (distance < 0.25) {
+    if (waypoint_now < v_pose.size()-1) {
+      if (pubNavPath(waypoint_now+1)) {
+        ++waypoint_now;
+      }
+    }
+    else {
+      ROS_INFO("All waypoint have published.");
+      trajectory_flag = quadrotor_msgs::PositionCommand::TRAJECTORY_STATUS_EMPTY;
+    }
   }
+
   pose_now = *msg;
 }
-void StateMachine::pubNavTimerCb(const ros::TimerEvent &e) {
-  // static bool first_pub = false;
-  // if (!first_pub) {
-  //   first_pub = pubNavPath(0);
-  // }
-  pubNavPath(circle_now_index);
+void StateMachine::pubWayPointTimerCb(const ros::TimerEvent &e) {
+  pubNavPath(waypoint_now);
 }
-void StateMachine::cleanMapTimerCb(const ros::TimerEvent &e) {
-  // std_srvs::Empty srv;
-  // if (clean_map_client.call(srv)) {
-  //   ROS_ERROR("Clean map fail!");
-  // }
-}
-bool StateMachine::pubNavPath(int circle_index) {
+bool StateMachine::pubNavPath(int index) {
   if (pose_now.header.seq == 0) { // no odom return
-    ROS_INFO("No odom message. Wait to publish nav path.");
+    ROS_INFO("StateMachine No odom message. Waiting.");
     return false;
   }
   if (waypoint_pub.getNumSubscribers() < 1) {
-    ROS_WARN("No subscriber on topic /waypoint_generator/waypoints, publish "
-             "nav path fail.");
+    ROS_WARN("StateMachine No subscriber on topic "
+             "/planning/pos_cmd, publish "
+             "waypoint path fail.");
+    return false;
+  }
+  if (init_cal == false) {
+    ROS_INFO("Init calculate not complete, waiting.");
     return false;
   }
 
-  nav_msgs::Path waypoint;
-  geometry_msgs::PoseStamped pose;
-
+  quadrotor_msgs::PositionCommand waypoint;
   waypoint.header.frame_id = "world";
-  pose.header.frame_id = "world";
-  pose.pose.position.x =
-      circle_poses.poses[waypoint_list[circle_index]].position.x;
-  pose.pose.position.y =
-      circle_poses.poses[waypoint_list[circle_index]].position.y;
-  pose.pose.position.z =
-      circle_poses.poses[waypoint_list[circle_index]].position.z;
-
-  tf2::Quaternion circle_q, now_q;
-  now_q.setW(pose_now.pose.pose.orientation.w);
-  now_q.setX(pose_now.pose.pose.orientation.x);
-  now_q.setY(pose_now.pose.pose.orientation.y);
-  now_q.setZ(pose_now.pose.pose.orientation.z);
-  double r, p, y;
-  tf2::Matrix3x3(now_q).getRPY(r, p, y); // check yaw direction
-  if (abs(y - circle_poses.poses[waypoint_list[circle_index]].yaw) > M_PI_2) {
-    circle_q.setRPY(0, 0,
-                    circle_poses.poses[waypoint_list[circle_index]].yaw + M_PI);
-  } else {
-    circle_q.setRPY(0, 0, circle_poses.poses[waypoint_list[circle_index]].yaw);
-  }
-
-  pose.pose.orientation.w = circle_q.w();
-  pose.pose.orientation.x = circle_q.x();
-  pose.pose.orientation.y = circle_q.y();
-  pose.pose.orientation.z = circle_q.z();
-
-  pose.header.stamp = ros::Time::now();
-  waypoint.poses.push_back(pose);
+  waypoint.trajectory_flag = this->trajectory_flag;
+  waypoint.position.x = v_pose[index].position_x;
+  waypoint.position.y = v_pose[index].position_y;
+  waypoint.position.z = v_pose[index].position_z;
+  waypoint.yaw = v_pose[index].yaw;
   waypoint.header.stamp = ros::Time::now();
-
   waypoint_pub.publish(waypoint);
 
   return true;
@@ -262,5 +226,102 @@ bool StateMachine::pubVisualizeCirclePose() {
     marker.header.stamp = ros::Time::now();
     marker_pub.publish(marker);
   }
+
+  marker.ns = "waypoint";
+  marker.type = visualization_msgs::Marker::POINTS;
+  marker.color.r = 1.f;
+  marker.color.g = 0.f;
+  marker.color.b = 0.f;
+  marker.color.a = 0.9f;
+  for (int i=0; i<v_pose.size(); ++i) {
+    marker.id = i;
+    marker.pose.position.x = v_pose[i].position_x;
+    marker.pose.position.y = v_pose[i].position_y;
+    marker.pose.position.z = v_pose[i].position_z;
+    marker.header.stamp = ros::Time::now();
+    marker_pub.publish(marker);
+  }
+
+  return true;
+}
+bool StateMachine::calTopHeight() {
+  if (circle_poses.poses.empty()) {
+    ROS_ERROR("circle poses vector empty!");
+    return false;
+  } else if (circle_poses.poses.size() != 17) {
+    ROS_ERROR("circle poses vector size not equal to 17!");
+    return false;
+  }
+
+  float height_max = 0.f;
+  for (int i = 0; i < circle_poses.poses.size(); ++i) {
+    if (circle_poses.poses[i].position.z > height_max) {
+      height_max = circle_poses.poses[i].position.z;
+    }
+  }
+  if (height_max == 0.f) {
+    return false;
+  }
+  fly_height = height_max + 10;
+  ROS_INFO("Circle Max height: %f", height_max);
+  ROS_INFO("Fly Max height: %f", fly_height);
+
+  return true;
+}
+bool StateMachine::calAllWaypoint() {
+  for (int i = 0; i < 13; ++i) {
+    Circle3Pose circle;
+    circle.mid.position_x = circle_poses.poses[waypoint_list[i]].position.x;
+    circle.mid.position_y = circle_poses.poses[waypoint_list[i]].position.y;
+    circle.after.position_z = circle.before.position_z = circle.mid.position_z =
+        circle_poses.poses[waypoint_list[i]].position.z;
+    circle.mid.yaw = circle_poses.poses[waypoint_list[i]].yaw;
+    // double cross_yaw;
+    // if (i == 0) {
+    //   cross_yaw = atan2(circle.mid.position_y, circle.mid.position_x);
+    // } else {
+    //   cross_yaw = atan2(circle.mid.position_y - v_pose.end()->position_y,
+    //                     circle.mid.position_x - v_pose.end()->position_x);
+    // }
+    // if (abs(cross_yaw - circle.mid.yaw) > M_PI_2) {
+    //   circle.before.yaw = circle.mid.yaw + M_PI;
+    //   if (circle.before.yaw > M_PI) {
+    //     circle.before.yaw -= 2 * M_PI;
+    //   } else if (circle.before.yaw < -M_PI) {
+    //     circle.before.yaw += 2 * M_PI;
+    //   }
+    // }
+
+    circle.after.yaw = circle.before.yaw = circle.mid.yaw;
+    circle.after.position_x = circle.mid.position_x + cos(circle.after.yaw);
+    circle.after.position_y = circle.mid.position_y + sin(circle.after.yaw);
+    circle.before.position_x =
+        circle.mid.position_x + cos(circle.after.yaw + M_PI);
+    circle.before.position_y =
+        circle.mid.position_y + cos(circle.after.yaw + M_PI);
+    FlyPose pos;
+    pos.position_z = fly_height;
+    if (i == 0) {
+      pos.position_x = 0;
+      pos.position_y = 0;
+      pos.yaw = atan2(circle.before.position_y, circle.before.position_x);
+    } else {
+      pos.position_x = v_pose.end()->position_x;
+      pos.position_y = v_pose.end()->position_y;
+      pos.yaw = atan2(circle.before.position_y - pos.position_y,
+                      circle.before.position_x - pos.position_x);
+    }
+    v_pose.push_back(pos);
+    pos.position_x = circle.before.position_x;
+    pos.position_y = circle.before.position_y;
+    v_pose.push_back(pos);
+    pos.position_z = circle.before.position_z;
+    pos.yaw = circle.before.yaw;
+    v_pose.push_back(pos);
+    pos.position_x = circle.after.position_x;
+    pos.position_y = circle.after.position_y;
+    v_pose.push_back(pos);
+  }
+  ROS_INFO("All waypoint vector size: %d", (int)v_pose.size());
   return true;
 }

@@ -3,18 +3,14 @@
 
 #include "airsim_ros/AngleRateThrottle.h"
 #include "airsim_ros/RotorPWM.h"
-#include "geometry_msgs/PoseStamped.h"
 #include "nav_msgs/Odometry.h"
 #include "pid.h"
-#include "quadrotor_msgs/FsmCommand.h"
 #include "quadrotor_msgs/PositionCommand.h"
 #include "ros/ros.h"
-#include <cmath>
 #include <cstdint>
 #include <dynamic_reconfigure/server.h>
 #include <flight_control/flight_pidConfig.h>
 #include <mutex>
-#include "sensor_msgs/Imu.h"
 
 class PidChain {
 public:
@@ -22,9 +18,11 @@ public:
   inline void positionSet(double x, double y, double z);
   inline void velocitySet(double x, double y, double z);
   inline void accelSet(double x, double y, double z);
+  inline void positionYawSet(double x, double y, double z, double yaw);
   inline void velocityYawSet(double x, double y, double z, double yaw);
   inline void angleSet(double pitch, double yaw, double roll);
   void positionUpdate(double x_now, double y_now, double z_now);
+  void positionYawUpdate();
   void velocityYawUpdate();
   void accelYawUpdate();
   inline void reset();
@@ -50,20 +48,21 @@ public:
 private:
   // ROS
   ros::NodeHandle &nh;
-  ros::ServiceClient takeoff_client, land_client;
+  // ros::ServiceClient takeoff_client, land_client;
   ros::Publisher pwm_pub, angle_rate_pub;
-  ros::Subscriber pos_sub, odom_sub, fsm_cmd_sub, imu_sub;
+  ros::Subscriber pos_sub, odom_sub, fsm_cmd_sub, fsm_sm_cmd_sub, imu_sub;
   ros::Timer cmd_pub_timer;
   nav_msgs::Odometry odom;
 
-  airsim_ros::RotorPWM pwm;
+  // airsim_ros::RotorPWM pwm;
   airsim_ros::AngleRateThrottle angle_rate;
 
   void cmdPubTimerCb(const ros::TimerEvent &);
   void odomCb(const nav_msgs::OdometryConstPtr &);
-  void imuCb(const sensor_msgs::ImuConstPtr &);
+  // void imuCb(const sensor_msgs::ImuConstPtr &);
   void posSubCb(const quadrotor_msgs::PositionCommandConstPtr &);
-  void fsmCmdCb(const quadrotor_msgs::FsmCommandConstPtr &);
+  // void fsmCmdCb(const quadrotor_msgs::FsmCommandConstPtr &);
+  // void fsmSmCmdCb(const quadrotor_msgs::FsmCommandConstPtr &);
 
   // PID
   dynamic_reconfigure::Server<flight_pid::flight_pidConfig> dy_server;
