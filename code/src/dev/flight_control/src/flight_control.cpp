@@ -152,7 +152,8 @@ void FlightControl::posSubCb(
   // pid_chain.accelSet(msg->acceleration.x, msg->acceleration.y,
   //                    msg->acceleration.z);
   pid_chain.cal_lock.lock();
-  pid_chain.angle_yaw.setExpect(msg->yaw / M_PI * 180);
+  // pid_chain.angle_yaw.setExpect(msg->yaw / M_PI * 180);
+  pid_chain.angle_yaw.setExpect(0);
   pid_chain.cal_lock.unlock();
 }
 // void FlightControl::fsmCmdCb(const quadrotor_msgs::FsmCommandConstPtr &msg) {

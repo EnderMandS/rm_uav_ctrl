@@ -103,7 +103,7 @@ bool StateMachine::pubNavPath(int index) {
   waypoint.position.x = v_pose[index].position_x;
   waypoint.position.y = v_pose[index].position_y;
   waypoint.position.z = v_pose[index].position_z;
-  waypoint.yaw = v_pose[index].yaw;
+  waypoint.yaw = 0;
   waypoint.header.stamp = ros::Time::now();
   waypoint_pub.publish(waypoint);
 
@@ -276,21 +276,20 @@ bool StateMachine::calAllWaypoint() {
     circle.after.position_z = circle.before.position_z = circle.mid.position_z =
         circle_poses.poses[waypoint_list[i]].position.z;
     circle.mid.yaw = circle_poses.poses[waypoint_list[i]].yaw;
-    // double cross_yaw;
+
+    // double x0, y0;  // y-y0 = k(x-x0)
     // if (i == 0) {
-    //   cross_yaw = atan2(circle.mid.position_y, circle.mid.position_x);
+    //   x0 = circle.mid.position_x;
+    //   y0 = circle.mid.position_y;
     // } else {
-    //   cross_yaw = atan2(circle.mid.position_y - v_pose.end()->position_y,
-    //                     circle.mid.position_x - v_pose.end()->position_x);
+    //   x0 = circle.mid.position_x - v_pose.end()->position_x;
+    //   y0 = circle.mid.position_y - v_pose.end()->position_y;
     // }
-    // if (abs(cross_yaw - circle.mid.yaw) > M_PI_2) {
-    //   circle.before.yaw = circle.mid.yaw + M_PI;
-    //   if (circle.before.yaw > M_PI) {
-    //     circle.before.yaw -= 2 * M_PI;
-    //   } else if (circle.before.yaw < -M_PI) {
-    //     circle.before.yaw += 2 * M_PI;
-    //   }
-    // }
+    // double k = tan(circle.mid.yaw);
+    // double k_ = -1 / k; // y = k_*x
+    // double x1 = k * (x0-y0) / (k-k_);
+    // double y1 = k_ * x1;
+    // double direction_truth = atan2(y1, x1);
 
     circle.after.yaw = circle.before.yaw = circle.mid.yaw;
     circle.after.position_x = circle.mid.position_x + cos(circle.after.yaw);
@@ -298,25 +297,25 @@ bool StateMachine::calAllWaypoint() {
     circle.before.position_x =
         circle.mid.position_x + cos(circle.after.yaw + M_PI);
     circle.before.position_y =
-        circle.mid.position_y + cos(circle.after.yaw + M_PI);
+        circle.mid.position_y + sin(circle.after.yaw + M_PI);
     FlyPose pos;
     pos.position_z = fly_height;
     if (i == 0) {
       pos.position_x = 0;
       pos.position_y = 0;
-      pos.yaw = atan2(circle.before.position_y, circle.before.position_x);
+      // pos.yaw = atan2(circle.before.position_y, circle.before.position_x);
     } else {
       pos.position_x = v_pose.end()->position_x;
       pos.position_y = v_pose.end()->position_y;
-      pos.yaw = atan2(circle.before.position_y - pos.position_y,
-                      circle.before.position_x - pos.position_x);
+      // pos.yaw = atan2(circle.before.position_y - pos.position_y,
+      //                 circle.before.position_x - pos.position_x);
     }
     v_pose.push_back(pos);
     pos.position_x = circle.before.position_x;
     pos.position_y = circle.before.position_y;
     v_pose.push_back(pos);
     pos.position_z = circle.before.position_z;
-    pos.yaw = circle.before.yaw;
+    // pos.yaw = circle.before.yaw;
     v_pose.push_back(pos);
     pos.position_x = circle.after.position_x;
     pos.position_y = circle.after.position_y;
