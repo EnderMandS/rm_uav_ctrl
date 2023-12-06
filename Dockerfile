@@ -6,6 +6,7 @@ ARG USERNAME=m
 
 # clone code
 COPY . /home/$USERNAME/UAV
+RUN sudo chmod -R 777 /home/$USERNAME/UAV
 # WORKDIR /home/$USERNAME/UAV
 # RUN git clone --depth 1 -b commit https://github.com/EnderMandS/rm_uav_ctrl.git UAV
 
@@ -15,8 +16,8 @@ RUN . /opt/ros/${ROS_DISTRO}/setup.sh && catkin_make --only-pkg-with-deps airsim
     . devel/setup.sh && catkin_make --only-pkg-with-deps basic_dev && \
     catkin_make -DCATKIN_WHITELIST_PACKAGES="" -DCMAKE_EXPORT_COMPILE_COMMANDS=1
 
-WORKDIR /home/$USERNAME/UAV
-RUN chmod 777 setup.zsh
+# WORKDIR /home/$USERNAME/UAV
+# RUN chmod 777 setup.zsh
 
 USER $USERNAME
 ENTRYPOINT [ "/home/m/UAV/setup.zsh" ]
