@@ -202,13 +202,13 @@ void FlightControl::dyCb(flight_pid::flight_pidConfig &cfg, uint32_t level) {
 
   // pid_chain.acc_x.setPid(cfg.acc_x_p, cfg.acc_x_i, cfg.acc_x_d);
   // pid_chain.acc_y.setPid(cfg.acc_y_p, cfg.acc_y_i, cfg.acc_y_d);
-  pid_chain.acc_z.setPid(cfg.acc_z_p, cfg.acc_z_i, cfg.acc_z_d);
+  // pid_chain.acc_z.setPid(cfg.acc_z_p, cfg.acc_z_i, cfg.acc_z_d);
   // pid_chain.acc_x.setMax(cfg.acc_x_out_max, cfg.acc_x_p_max, cfg.acc_x_i_max,
   //                        cfg.acc_x_d_max);
   // pid_chain.acc_y.setMax(cfg.acc_y_out_max, cfg.acc_y_p_max, cfg.acc_y_i_max,
   //                        cfg.acc_y_d_max);
-  pid_chain.acc_z.setMax(cfg.acc_z_out_max, cfg.acc_z_p_max, cfg.acc_z_i_max,
-                         cfg.acc_z_d_max);
+  // pid_chain.acc_z.setMax(cfg.acc_z_out_max, cfg.acc_z_p_max, cfg.acc_z_i_max,
+  //                        cfg.acc_z_d_max);
 
   pid_chain.angle_pitch.setPid(cfg.angle_pitch_p, cfg.angle_pitch_i,
                                cfg.angle_pitch_d);
@@ -332,16 +332,11 @@ void PidChain::positionYawUpdate() {
   vel_x.setExpect(position_x.update());
   vel_y.setExpect(position_y.update());
   vel_z.setExpect(position_z.update());
-  // if (vel_z.expect<-0.5) {
-  //   vel_z.setExpect(-0.5);
-  // }
 
   angle_pitch.setExpect(
       lpf_angle_pitch.update(vel_x.update(), dt, LPF_ANGLE_CUTOFF));
-  // angle_pitch.setExpect(vel_x.update());
   angle_vel_pitch.setExpect(angle_pitch.update());
 
-  // vel_y.setExpect(-vel_y.expect);
   angle_roll.setExpect(
       -lpf_angle_roll.update(vel_y.update(), dt, LPF_ANGLE_CUTOFF));
   angle_vel_roll.setExpect(angle_roll.update());
