@@ -1,7 +1,5 @@
 #include "flight_control.h"
 #include "LowPassFilter.hpp"
-#include "airsim_ros/Land.h"
-#include "airsim_ros/Takeoff.h"
 #include "flight_control/PidDebug.h"
 #include "geometry_msgs/Twist.h"
 #include "tf/LinearMath/Matrix3x3.h"

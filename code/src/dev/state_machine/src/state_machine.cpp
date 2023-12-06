@@ -6,7 +6,6 @@
 #include "visualization_msgs/Marker.h"
 #include <Eigen/Core>
 #include <cmath>
-#include <cstdlib>
 #include <nav_msgs/Path.h>
 #include <ostream>
 #include <std_srvs/Empty.h>
@@ -290,27 +289,8 @@ bool StateMachine::calAllWaypoint() {
     circle.after.position_z = circle.before.position_z = circle.mid.position_z =
         circle_poses.poses[waypoint_list[i]].position.z;
     circle.mid.yaw = circle_poses.poses[waypoint_list[i]].yaw;
-
-    // double x0, y0; // y-y0 = k(x-x0)
-    // if (i == 0) {
-    //   x0 = circle.mid.position_x;
-    //   y0 = circle.mid.position_y;
-    // } else {
-    //   x0 = circle.mid.position_x - v_pose.back().position_x;
-    //   y0 = circle.mid.position_y - v_pose.back().position_y;
-    // }
-    // double k = tan(circle.mid.yaw + M_PI_2);
-    // double k_ = -1 / k; // y = k_*x
-    // double x1 = k * (x0 - y0) / (k - k_);
-    // double y1 = k_ * x1;
-    // double yaw_truth = atan2(y1, x1);
-    // if (abs(yaw_truth - circle.mid.yaw) > M_PI_2) {
-    //   circle.mid.yaw += M_PI;
-    //   if (circle.mid.yaw > M_PI) {
-    //     circle.mid.yaw -= 2*M_PI;
-    //   } else if (circle.mid.yaw < M_PI) {
-    //   circle.mid.yaw += 2*M_PI;
-    //   }
+    // if (i==8 || i==9 || i==12) {
+    //   circle.mid.yaw = circle_poses.poses[waypoint_list[i]].yaw + M_PI_2;
     // }
 
 #define DISTANCE_FACTOR (2.0)
@@ -323,11 +303,37 @@ bool StateMachine::calAllWaypoint() {
     circle.before.position_y =
         circle.mid.position_y + DISTANCE_FACTOR * sin(circle.mid.yaw + M_PI);
 
+    float dis_before, dis_after;
+    if (i == 0) {
+      dis_before = sqrt(pow(circle.before.position_x, 2) +
+                        pow(circle.before.position_y, 2));
+      dis_after = sqrt(pow(circle.after.position_x, 2) +
+                       pow(circle.after.position_y, 2));
+    } else {
+      dis_before =
+          sqrt(pow(v_pose.back().position_x - circle.before.position_x, 2) +
+               pow(v_pose.back().position_y - circle.before.position_y, 2));
+      dis_after =
+          sqrt(pow(v_pose.back().position_x - circle.after.position_x, 2) +
+               pow(v_pose.back().position_y - circle.after.position_y, 2));
+    }
+    if (dis_before > dis_after) {
+      FlyPose pos_tmp = circle.before;
+      circle.before = circle.after;
+      circle.after = pos_tmp;
+    }
+
+#define TREE_HEIGHT (26)
+#define WING_HEIGHT (70)
     FlyPose pos;
-    if (i < 3) {
+    if (i < 4) {
       pos.position_x = circle.before.position_x;
       pos.position_y = circle.before.position_y;
-      pos.position_z = circle.before.position_z + 3;
+      // if (i==0) {
+        pos.position_z = circle.before.position_z;
+      // } else {
+      //   pos.position_z = circle.before.position_z + 2;
+      // }
       v_pose.push_back(pos);
       pos.position_x = circle.before.position_x;
       pos.position_y = circle.before.position_y;
@@ -339,9 +345,30 @@ bool StateMachine::calAllWaypoint() {
       v_pose.push_back(pos);
       pos.position_x = circle.after.position_x;
       pos.position_y = circle.after.position_y;
-      pos.position_z = circle.after.position_z + 3;
+      // if (i == 3) {
+      //   pos.position_z = TREE_HEIGHT;
+      // } else {
+      //   pos.position_z = circle.after.position_z + 2;
+      // }
       v_pose.push_back(pos);
-    } else {
+    } else if (i < 9) {
+      pos.position_x = v_pose.back().position_x;
+      pos.position_y = v_pose.back().position_y;
+      pos.position_z = TREE_HEIGHT;
+      v_pose.push_back(pos);
+      pos.position_x = circle.before.position_x;
+      pos.position_y = circle.before.position_y;
+      pos.position_z = TREE_HEIGHT;
+      v_pose.push_back(pos);
+      pos.position_x = circle.before.position_x;
+      pos.position_y = circle.before.position_y;
+      pos.position_z = circle.before.position_z;
+      v_pose.push_back(pos);
+      pos.position_x = circle.after.position_x;
+      pos.position_y = circle.after.position_y;
+      pos.position_z = circle.after.position_z;
+      v_pose.push_back(pos);
+    } else if (i < 11) {
       pos.position_x = v_pose.back().position_x;
       pos.position_y = v_pose.back().position_y;
       pos.position_z = fly_height;
@@ -349,6 +376,23 @@ bool StateMachine::calAllWaypoint() {
       pos.position_x = circle.before.position_x;
       pos.position_y = circle.before.position_y;
       pos.position_z = fly_height;
+      v_pose.push_back(pos);
+      pos.position_x = circle.before.position_x;
+      pos.position_y = circle.before.position_y;
+      pos.position_z = circle.before.position_z;
+      v_pose.push_back(pos);
+      pos.position_x = circle.after.position_x;
+      pos.position_y = circle.after.position_y;
+      pos.position_z = circle.after.position_z;
+      v_pose.push_back(pos);
+    } else {
+      pos.position_x = v_pose.back().position_x;
+      pos.position_y = v_pose.back().position_y;
+      pos.position_z = WING_HEIGHT;
+      v_pose.push_back(pos);
+      pos.position_x = circle.before.position_x;
+      pos.position_y = circle.before.position_y;
+      pos.position_z = WING_HEIGHT;
       v_pose.push_back(pos);
       pos.position_x = circle.before.position_x;
       pos.position_y = circle.before.position_y;
