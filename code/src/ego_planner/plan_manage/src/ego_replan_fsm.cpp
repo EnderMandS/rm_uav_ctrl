@@ -43,7 +43,7 @@ namespace ego_planner
 
     bspline_pub_ = nh.advertise<ego_planner::Bspline>("/planning/bspline", 10);
     data_disp_pub_ = nh.advertise<ego_planner::DataDisp>("/planning/data_display", 100);
-    fsm_cmd_pub_ = nh.advertise<quadrotor_msgs::FsmCommand>("/planning/fsm_cmd", 5);
+    fsm_cmd_pub_ = nh.advertise<quadrotor_msgs::FsmCommand>("/planning/fsm_cmd", 1);
 
     if (target_type_ == TARGET_TYPE::MANUAL_TARGET)
       waypoint_sub_ = nh.subscribe("/waypoint_generator/waypoints", 1, &EGOReplanFSM::waypointCallback, this);
@@ -229,7 +229,7 @@ namespace ego_planner
 
     // publish fsm state to topic "/planning/fsm_cmd"
     quadrotor_msgs::FsmCommand fsm_cmd;
-    if (exec_state_==EXEC_TRAJ || exec_state_==REPLAN_TRAJ) {
+    if (exec_state_==EXEC_TRAJ || exec_state_==GEN_NEW_TRAJ || exec_state_==REPLAN_TRAJ) {
       fsm_cmd.trajectory_flag = quadrotor_msgs::FsmCommand::TRAJECTORY_STATUS_EXEC;
     }
     else {
@@ -459,10 +459,11 @@ namespace ego_planner
     vel = info->velocity_traj_.evaluateDeBoorT(t_cur);
     acc = info->acceleration_traj_.evaluateDeBoorT(t_cur);
 
-    if ((odom_pos_-pos).norm()>0.05 || 
-        (odom_vel_-vel).norm()>0.25 || 
-        (odom_acc_-acc).norm()>0.25) {
-      ROS_WARN("Global replanning, because odom have a great difference from planning expect.");
+    // if ((odom_pos_-pos).norm()>0.05 || 
+    //     (odom_vel_-vel).norm()>0.25 || 
+    //     (odom_acc_-acc).norm()>0.25) {
+    if ((odom_pos_-pos).norm()>5.0) {
+      ROS_WARN("Global replanning because odom have a great difference from planning expect.");
       // nav_msgs::Path goal;
       // geometry_msgs::PoseStamped p;
       // replan_lock_.lock();

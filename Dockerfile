@@ -5,8 +5,9 @@ ENV ROS_DISTRO noetic
 ARG USERNAME=m
 
 # clone code
-WORKDIR /home/$USERNAME
-RUN git clone --depth 1 -b commit https://github.com/EnderMandS/rm_uav_ctrl.git UAV
+COPY . /home/$USERNAME/UAV
+# WORKDIR /home/$USERNAME/UAV
+# RUN git clone --depth 1 -b commit https://github.com/EnderMandS/rm_uav_ctrl.git UAV
 
 # compile
 WORKDIR /home/$USERNAME/UAV/code/

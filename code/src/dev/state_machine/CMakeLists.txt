@@ -14,6 +14,8 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   visualization_msgs
   std_srvs
+  quadrotor_msgs
+  geometry_msgs
 )
 
 # Eigen3

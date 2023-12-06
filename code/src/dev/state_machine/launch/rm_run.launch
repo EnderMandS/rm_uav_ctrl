@@ -1,0 +1,9 @@
+<launch>
+  <param name="use_sim_time" value="false" />
+  <node pkg="tf2_ros" type="static_transform_publisher" name="base_to_cam" args="0.26 0 0 -1.5707963 0 -1.5707963 base_link camera" output="screen"/>
+  <node pkg="odom_pub" name="odom_pub" type="odom_pub" output="screen"/>
+  <node pkg="flight_control" name="flight_control" type="flight_control" output="screen"/>
+  <node pkg="state_machine" name="state_machine" type="state_machine" output="screen"/>
+  <!-- <node pkg="rqt_reconfigure" name="rqt_reconfigure" type="rqt_reconfigure" output="screen"/>
+  <include file="$(find ego_planner)/launch/rviz.launch"/> -->
+</launch>
