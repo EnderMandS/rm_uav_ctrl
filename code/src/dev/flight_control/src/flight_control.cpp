@@ -334,9 +334,9 @@ void PidChain::positionYawUpdate() {
   vel_x.setExpect(position_x.update());
   vel_y.setExpect(position_y.update());
   vel_z.setExpect(position_z.update());
-  if (vel_z.expect<-0.5) {
-    vel_z.setExpect(-0.5);
-  }
+  // if (vel_z.expect<-0.5) {
+  //   vel_z.setExpect(-0.5);
+  // }
 
   angle_pitch.setExpect(
       lpf_angle_pitch.update(vel_x.update(), dt, LPF_ANGLE_CUTOFF));
