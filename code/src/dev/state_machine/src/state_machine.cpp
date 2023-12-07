@@ -34,7 +34,7 @@ StateMachine::StateMachine(ros::NodeHandle &nh) {
   pub_waypoint_timer =
       nh.createTimer(ros::Duration(2), &StateMachine::pubWayPointTimerCb, this);
   dead_check_timer =
-      nh.createTimer(ros::Duration(10), &StateMachine::deadCheckTimerCb, this);
+      nh.createTimer(ros::Duration(7), &StateMachine::deadCheckTimerCb, this);
   ROS_INFO("State machine init success.");
 }
 void StateMachine::circlePoseCb(const airsim_ros::CirclePosesConstPtr &msg) {

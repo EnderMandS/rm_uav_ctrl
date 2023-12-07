@@ -4,6 +4,6 @@
   <node pkg="odom_pub" name="odom_pub" type="odom_pub" output="screen"/>
   <node pkg="flight_control" name="flight_control" type="flight_control" output="screen"/>
   <node pkg="state_machine" name="state_machine" type="state_machine" output="screen"/>
-  <node pkg="rqt_reconfigure" name="rqt_reconfigure" type="rqt_reconfigure" output="screen"/>
-  <include file="$(find ego_planner)/launch/rviz.launch"/>
+  <!-- <node pkg="rqt_reconfigure" name="rqt_reconfigure" type="rqt_reconfigure" output="screen"/>
+  <include file="$(find ego_planner)/launch/rviz.launch"/> -->
 </launch>
