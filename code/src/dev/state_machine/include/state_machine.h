@@ -25,7 +25,7 @@ public:
 private:
   ros::Subscriber circle_sub, odom_sub;
   ros::Publisher waypoint_pub, marker_pub;
-  ros::Timer pub_waypoint_timer;
+  ros::Timer pub_waypoint_timer, dead_check_timer;
 
   enum FlyState{
     UP, SMOOTH, DOWN, CROSS, STOP
@@ -40,10 +40,12 @@ private:
   nav_msgs::Odometry pose_now;
   unsigned char trajectory_flag=quadrotor_msgs::PositionCommand::TRAJECTORY_STATUS_EMPTY;
   float fly_height=50.f;
+  bool new_odom=false;
 
   void circlePoseCb(const airsim_ros::CirclePosesConstPtr &);
   void odomCb(const nav_msgs::OdometryConstPtr &);
   void pubWayPointTimerCb(const ros::TimerEvent &);
+  void deadCheckTimerCb(const ros::TimerEvent &);
   void pubFsmCmdCb(const ros::TimerEvent &);
   bool pubNavPath(int);
   bool calFastestWaypoint();
