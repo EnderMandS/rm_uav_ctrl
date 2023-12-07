@@ -2,15 +2,17 @@
 #include "airsim_ros/Circle.h"
 #include "geometry_msgs/Point.h"
 #include "geometry_msgs/Vector3.h"
+#include "ros/duration.h"
 #include "tf2/LinearMath/Quaternion.h"
 #include "visualization_msgs/Marker.h"
 #include <Eigen/Core>
 #include <cmath>
 #include <nav_msgs/Path.h>
 #include <ostream>
+#include <random>
 #include <std_srvs/Empty.h>
 
-#define VISUAL
+// #define VISUAL
 
 int main(int argc, char **argv) {
   ros::init(argc, argv, "state_machine");
@@ -31,6 +33,8 @@ StateMachine::StateMachine(ros::NodeHandle &nh) {
   marker_pub = nh.advertise<visualization_msgs::Marker>("/circle_marker", 100);
   pub_waypoint_timer =
       nh.createTimer(ros::Duration(2), &StateMachine::pubWayPointTimerCb, this);
+  dead_check_timer =
+      nh.createTimer(ros::Duration(7), &StateMachine::deadCheckTimerCb, this);
   ROS_INFO("State machine init success.");
 }
 void StateMachine::circlePoseCb(const airsim_ros::CirclePosesConstPtr &msg) {
@@ -81,9 +85,53 @@ void StateMachine::odomCb(const nav_msgs::OdometryConstPtr &msg) {
   }
 
   pose_now = *msg;
+  new_odom = true;
 }
 void StateMachine::pubWayPointTimerCb(const ros::TimerEvent &e) {
   pubNavPath(waypoint_now);
+}
+void StateMachine::deadCheckTimerCb(const ros::TimerEvent &e) {
+  if (pose_now.header.seq == 0) { // no odom return
+    return;
+  }
+
+  static bool init = false;
+  static geometry_msgs::Point last_point = pose_now.pose.pose.position;
+  if (init == false) {
+    new_odom = false;
+    init = true;
+    return;
+  }
+
+  if (new_odom == true) {
+    new_odom = false;
+    float distance = sqrt(pow(last_point.x - pose_now.pose.pose.position.x, 2) +
+                          pow(last_point.y - pose_now.pose.pose.position.y, 2) +
+                          pow(last_point.z - pose_now.pose.pose.position.z, 2));
+    last_point = pose_now.pose.pose.position;
+    if (distance < 0.2f) {
+      ROS_WARN("Detect drone dead, try publish random waypoint.");
+      std::random_device rd;
+      std::mt19937 gen(rd());
+      std::uniform_real_distribution<> dis(-1.5, 1.5);
+      double x = pose_now.pose.pose.position.x + dis(gen);
+      double y = pose_now.pose.pose.position.y + dis(gen);
+      ROS_INFO("Drone now point, x:%f, y:%f, z:%f",
+               pose_now.pose.pose.position.x, pose_now.pose.pose.position.y,
+               pose_now.pose.pose.position.z);
+      ROS_INFO("Random waypoint x:%f, y:%f, z:%f", x, y,
+               pose_now.pose.pose.position.z);
+      quadrotor_msgs::PositionCommand waypoint;
+      waypoint.header.frame_id = "world";
+      waypoint.trajectory_flag = this->trajectory_flag;
+      waypoint.position.x = x;
+      waypoint.position.y = y;
+      waypoint.position.z = pose_now.pose.pose.position.z;
+      waypoint.yaw = 0;
+      waypoint.header.stamp = ros::Time::now();
+      waypoint_pub.publish(waypoint);
+    }
+  }
 }
 bool StateMachine::pubNavPath(int index) {
   if (pose_now.header.seq == 0) { // no odom return
@@ -98,6 +146,9 @@ bool StateMachine::pubNavPath(int index) {
   }
   if (init_cal == false) {
     ROS_INFO("Init calculate not complete, waiting.");
+    return false;
+  }
+  if (index >= v_pose.size()) {
     return false;
   }
 
@@ -326,11 +377,12 @@ bool StateMachine::calAllWaypoint() {
 #define TREE_HEIGHT (26)
 #define WING_HEIGHT (70)
     FlyPose pos;
+    pos.yaw = circle.mid.yaw;
     if (i < 4) {
       pos.position_x = circle.before.position_x;
       pos.position_y = circle.before.position_y;
       // if (i==0) {
-        pos.position_z = circle.before.position_z;
+      pos.position_z = circle.before.position_z;
       // } else {
       //   pos.position_z = circle.before.position_z + 2;
       // }
